@@ -1,6 +1,6 @@
 # Relatório da revisão 2.0.0 (para revisão por outro agente)
 
-Este relatório descreve o que mudou, porquê, e como foi verificado. Os valores pessoais da verificação com dados reais estão num relatório privado fora do repositório (`docs/privado/VERIFICACAO-DADOS-REAIS.md`).
+Este relatório descreve o que mudou, porquê, e como foi verificado. Os valores pessoais da verificação com dados reais estão num relatório privado fora do repositório (`privado/notas/VERIFICACAO-DADOS-REAIS.md`).
 
 ## Âmbito aprovado
 

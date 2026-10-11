@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/tpereira2005/zepp-life-transformacao/schema/dados-zepp-life-ia.schema.json",
+  "$id": "https://github.com/tpereira2005/zepp-life-excel-ia/schema/dados-zepp-life-ia.schema.json",
   "title": "Dados de transformação corporal para análise por IA",
   "description": "Fotografia de uma atualização: medições da balança aceites, medidas manuais e agregações derivadas.",
   "type": "object",

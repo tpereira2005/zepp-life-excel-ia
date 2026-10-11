@@ -8,7 +8,7 @@ $raiz = Split-Path $PSScriptRoot -Parent
 $python = Join-Path $raiz '.venv\Scripts\python.exe'
 $script = Join-Path $raiz 'scripts\atualizar-zepp.ps1'
 $t = Join-Path ([IO.Path]::GetTempPath()) ('zepp-teste-' + [guid]::NewGuid().ToString('N'))
-$dados = Join-Path $t 'dados'; $privado = Join-Path $t 'privado'
+$dados = Join-Path $t 'dados'; $resultados = Join-Path $t 'resultados'; $privado = Join-Path $t 'credenciais'
 [void](New-Item -ItemType Directory -Path $t)
 $falhas = 0
 function Confirmar([bool]$condicao, [string]$descricao) {
@@ -22,7 +22,7 @@ function Resposta([int]$dias, [int]$remover = 0) {
 }
 function Atualizar([string[]]$extra) {
     $saida = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $script -SemPausa -SemExcelReal -Hoje 2026-05-10 `
-        -PastaDados $dados -PastaPrivada $privado -Leitor (Join-Path $t 'leitor.cmd') -Config (Join-Path $t 'config.json') @extra 2>&1
+        -PastaDados $dados -PastaResultados $resultados -PastaPrivada $privado -Leitor (Join-Path $t 'leitor.cmd') -Config (Join-Path $t 'config.json') @extra 2>&1
     return @{ Codigo = $LASTEXITCODE; Texto = ($saida | Out-String) }
 }
 function Hash([string]$caminho) { (Get-FileHash -LiteralPath $caminho -Algorithm SHA256).Hash }
@@ -34,8 +34,8 @@ try {
     # Sessão fictícia guardada com DPAPI na pasta privada DE TESTE (nunca na real).
     [void](New-Item -ItemType Directory -Path $privado)
     ConvertTo-SecureString 'utilizador:sessao-ficticia' -AsPlainText -Force | Export-Clixml -LiteralPath (Join-Path $privado 'sessao.clixml')
-    $livro = Join-Path $dados 'analise-historico-zepp-life.xlsx'
-    $ia = Join-Path $dados 'dados-zepp-life-ia.json'
+    $livro = Join-Path $resultados 'analise-historico-zepp-life.xlsx'
+    $ia = Join-Path $resultados 'dados-zepp-life-ia.json'
 
     Write-Host '1. Primeira atualização'
     Resposta 100
@@ -45,7 +45,7 @@ try {
     Confirmar (Test-Path (Join-Path $privado 'sessao.clixml')) 'guarda a sessão na pasta privada de teste'
     Confirmar (-not ((Get-Content (Join-Path $privado 'sessao.clixml') -Raw).Contains('token-de-teste'))) 'sessão não fica em texto legível'
     Confirmar (@(Get-ChildItem (Join-Path $dados 'temporario') -Directory -ErrorAction SilentlyContinue).Count -eq 0) 'remove a pasta temporária após sucesso'
-    $csv = Get-Content (Join-Path $dados 'exportacao\zepp-completo.csv') -TotalCount 1
+    $csv = Get-Content (Join-Path $dados 'exportacao-zepp\zepp-completo.csv') -TotalCount 1
     Confirmar ($csv -like '*;*') 'CSV usa ponto e vírgula'
 
     Write-Host '2. Nova pesagem'
@@ -79,10 +79,10 @@ try {
     Confirmar ($r.Codigo -eq 1 -and $r.Texto -match 'em curso') 'recusa uma segunda atualização simultânea'
 
     Write-Host '7. Recalcular sem descarregar'
-    $exportAntes = Hash (Join-Path $dados 'exportacao\zepp-completo.json')
+    $exportAntes = Hash (Join-Path $dados 'exportacao-zepp\zepp-completo.json')
     $r = Atualizar @('-SoExcel')
     Confirmar ($r.Codigo -eq 0) 'termina com sucesso'
-    Confirmar ((Hash (Join-Path $dados 'exportacao\zepp-completo.json')) -eq $exportAntes) 'não altera a exportação'
+    Confirmar ((Hash (Join-Path $dados 'exportacao-zepp\zepp-completo.json')) -eq $exportAntes) 'não altera a exportação'
 
     Write-Host '8. Falha do gerador repõe tudo'
     $antes = Hash $livro

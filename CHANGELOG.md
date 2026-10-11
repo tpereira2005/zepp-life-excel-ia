@@ -1,5 +1,11 @@
 # Registo de alterações
 
+## 2.0.3 — 2026-10-11
+
+- Projeto renomeado para **zepp-life-excel-ia** (pasta e repositório).
+- Nova organização das pastas pessoais (fora do Git): `Excel e JSON/` só com os resultados; `privado/` com `entradas/`, `exportacao-zepp/`, `historico/`, `temporario/`, `backups/`, `arquivo/` e `notas/`. Substitui `inputs/`, `outputs/zepp-life/`, `arquivo/` e `docs/privado/`.
+- `atualizar-zepp.ps1`: novo parâmetro `-PastaResultados`; `-PastaDados` aponta para `privado/`.
+
 ## 2.0.2 — 2026-10-11
 
 - Mudança de hora: o Painel identifica a última pesagem pelo instante UTC (nova coluna oculta *Instante UTC* em Medições Corporais), não pela hora local. Antes, duas pesagens à mesma hora local (01:00–02:00 do último domingo de outubro) podiam mostrar o peso errado como "último".

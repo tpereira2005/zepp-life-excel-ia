@@ -1,9 +1,7 @@
 # ── Dados pessoais: NUNCA publicar ─────────────────────────────
 config.json
-inputs/
-outputs/
-arquivo/
-docs/privado/
+privado/
+Excel e JSON/
 *.clixml
 
 # ── Binários e ambiente ───────────────────────────────────────

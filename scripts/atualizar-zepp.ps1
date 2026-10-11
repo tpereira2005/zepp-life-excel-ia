@@ -4,7 +4,8 @@
   - -SoExcel: regenera a partir da exportação local, sem contactar a Xiaomi/Zepp.
   - -EsquecerConta: apaga a conta e a sessão guardadas neste computador.
   Os resultados são preparados numa pasta temporária, validados e só depois substituem os anteriores;
-  as versões anteriores ficam em historico\. Em caso de falha, nada é substituído.
+  as versões anteriores ficam em privado\historico\. Em caso de falha, nada é substituído.
+  Pastas: 'Excel e JSON' (resultados que se abrem) e 'privado' (exportação, histórico, temporários).
 #>
 param(
     [switch]$SoExcel,
@@ -13,6 +14,7 @@ param(
     [switch]$SemExcelReal,
     [switch]$PermitirRemocoes,
     [string]$PastaDados,
+    [string]$PastaResultados,
     [string]$PastaPrivada = (Join-Path $env:LOCALAPPDATA 'ZeppLifeExcel'),
     [string]$Leitor,
     [string]$Config,
@@ -22,17 +24,18 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $raiz = Split-Path $PSScriptRoot -Parent
-if (-not $PastaDados) { $PastaDados = Join-Path $raiz 'outputs\zepp-life' }
+if (-not $PastaDados) { $PastaDados = Join-Path $raiz 'privado' }
+if (-not $PastaResultados) { $PastaResultados = Join-Path $raiz 'Excel e JSON' }
 if (-not $Leitor) { $Leitor = Join-Path $raiz 'bin\zepp-reader.exe' }
 if (-not $Config) { $Config = Join-Path $raiz 'config.json' }
 if (-not $Python) { $Python = Join-Path $raiz '.venv\Scripts\python.exe' }
 
 $contaPath = Join-Path $PastaPrivada 'conta.clixml'
 $sessaoPath = Join-Path $PastaPrivada 'sessao.clixml'
-$exportJson = Join-Path $PastaDados 'exportacao\zepp-completo.json'
-$exportCsv = Join-Path $PastaDados 'exportacao\zepp-completo.csv'
-$livroPath = Join-Path $PastaDados 'analise-historico-zepp-life.xlsx'
-$iaPath = Join-Path $PastaDados 'dados-zepp-life-ia.json'
+$exportJson = Join-Path $PastaDados 'exportacao-zepp\zepp-completo.json'
+$exportCsv = Join-Path $PastaDados 'exportacao-zepp\zepp-completo.csv'
+$livroPath = Join-Path $PastaResultados 'analise-historico-zepp-life.xlsx'
+$iaPath = Join-Path $PastaResultados 'dados-zepp-life-ia.json'
 $pastaTemporaria = Join-Path $PastaDados 'temporario'
 $stage = $null
 $lockStream = $null
@@ -111,6 +114,7 @@ try {
         return
     }
     [void](New-Item -ItemType Directory -Force -Path $PastaDados)
+    [void](New-Item -ItemType Directory -Force -Path $PastaResultados)
     try { $lockStream = [IO.File]::Open((Join-Path $PastaDados '.atualizacao.lock'), 'OpenOrCreate', 'ReadWrite', 'None') }
     catch { throw 'Já existe uma atualização em curso. Feche a outra janela de atualização e tente novamente.' }
     if (Test-Path -LiteralPath $livroPath) {
@@ -241,7 +245,7 @@ try {
     }
     if (@(Get-ChildItem -LiteralPath $copias).Count -eq 0) { [IO.Directory]::Delete($copias) }
     $sucesso = $true
-    Write-Host 'Atualização concluída. Excel e JSON para IA validados; versões anteriores guardadas em historico.' -ForegroundColor Green
+    Write-Host 'Atualização concluída. Excel e JSON para IA validados; versões anteriores guardadas em privado\historico.' -ForegroundColor Green
     Write-Host $livroPath
     Write-Host $iaPath
 } catch {

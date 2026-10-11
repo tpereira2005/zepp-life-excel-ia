@@ -4,7 +4,7 @@
 
 **Da balança Xiaomi para um Excel claro e um JSON pronto para IA — com um duplo clique.**
 
-[![CI](https://github.com/tpereira2005/zepp-life-transformacao/actions/workflows/ci.yml/badge.svg)](https://github.com/tpereira2005/zepp-life-transformacao/actions/workflows/ci.yml)
+[![CI](https://github.com/tpereira2005/zepp-life-excel-ia/actions/workflows/ci.yml/badge.svg)](https://github.com/tpereira2005/zepp-life-excel-ia/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white)
 ![Excel](https://img.shields.io/badge/Excel-nativo%20e%20edit%C3%A1vel-217346?logo=microsoftexcel&logoColor=white)
@@ -42,16 +42,16 @@ Acompanha uma transformação corporal a partir das pesagens de uma **Xiaomi Mi 
 > Requisitos: Windows 10/11, [Python 3.11+](https://www.python.org/downloads/) e Microsoft Excel (recomendado, para validar e consultar).
 
 ```bat
-git clone https://github.com/tpereira2005/zepp-life-transformacao.git
-cd zepp-life-transformacao
+git clone https://github.com/tpereira2005/zepp-life-excel-ia.git
+cd zepp-life-excel-ia
 INSTALAR.cmd
 ```
 
 1. Edite `config.json` (data de início, protocolo de pesagem, CSV inicial opcional).
-2. Coloque o leitor `zepp-reader.exe` em `bin\` — descarregue-o dos artefactos do [CI](https://github.com/tpereira2005/zepp-life-transformacao/actions/workflows/ci.yml) ou compile-o (ver [instalação](docs/INSTALACAO.md)).
+2. Coloque o leitor `zepp-reader.exe` em `bin\` — descarregue-o dos artefactos do [CI](https://github.com/tpereira2005/zepp-life-excel-ia/actions/workflows/ci.yml) ou compile-o (ver [instalação](docs/INSTALACAO.md)).
 3. Sincronize a balança na Zepp Life, feche o Excel e execute **`ATUALIZAR-EXCEL.cmd`**.
 
-O Excel e o JSON ficam em `outputs\zepp-life\`. Para experimentar sem conta, abra o [exemplo fictício](docs/exemplo/).
+O Excel e o JSON ficam na pasta **`Excel e JSON\`**. Para experimentar sem conta, abra o [exemplo fictício](docs/exemplo/).
 
 ## Utilização diária
 
@@ -82,14 +82,14 @@ flowchart LR
     C --> E[Excel nativo<br/>openpyxl]
     C --> F[JSON para IA<br/>esquema 2.0.0]
     E -->|verificação| G[Microsoft Excel<br/>COM]
-    B -->|validado| H[(outputs/ + historico/)]
+    B -->|validado| H[(Excel e JSON/<br/>privado/historico)]
 ```
 
 Ver [docs/ARQUITETURA.md](docs/ARQUITETURA.md).
 
 ## Privacidade
 
-Os dados corporais são pessoais. O repositório **não contém** dados reais: `config.json`, `inputs/`, `outputs/` e `arquivo/` estão no `.gitignore`. Conta e sessão ficam fora do projeto, em `%LOCALAPPDATA%\ZeppLifeExcel`, cifradas com DPAPI e acessíveis apenas ao utilizador Windows. O JSON não inclui credenciais, tokens, email nem o identificador do dispositivo.
+Os dados corporais são pessoais. O repositório **não contém** dados reais: `config.json`, `Excel e JSON/` e `privado/` estão no `.gitignore`. Conta e sessão ficam fora do projeto, em `%LOCALAPPDATA%\ZeppLifeExcel`, cifradas com DPAPI e acessíveis apenas ao utilizador Windows. O JSON não inclui credenciais, tokens, email nem o identificador do dispositivo.
 
 ## Testes
 

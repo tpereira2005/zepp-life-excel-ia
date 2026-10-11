@@ -1,6 +1,6 @@
 # JSON para IA (esquema 2.0.0)
 
-Ficheiro: `outputs/zepp-life/dados-zepp-life-ia.json` · Esquema: [`schema/dados-zepp-life-ia.schema.json`](../schema/dados-zepp-life-ia.schema.json) · Exemplo fictício: [`exemplo/exemplo-dados-ia.json`](exemplo/exemplo-dados-ia.json)
+Ficheiro: `Excel e JSON/dados-zepp-life-ia.json` · Esquema: [`schema/dados-zepp-life-ia.schema.json`](../schema/dados-zepp-life-ia.schema.json) · Exemplo fictício: [`exemplo/exemplo-dados-ia.json`](exemplo/exemplo-dados-ia.json)
 
 ## Estrutura
 

@@ -272,7 +272,7 @@ def construir(caminho: Path, cfg: Config, selecao: Selecao, semanas: list[Semana
     leituras = selecao.aceites
     wb = Workbook()
     wb.calculation = CalcProperties(fullCalcOnLoad=True)
-    wb.properties.creator = "zepp-life-transformacao"
+    wb.properties.creator = "zepp-life-excel-ia"
     wb.properties.title = "Transformação corporal"
     painel = wb.active
     painel.title = "Painel"

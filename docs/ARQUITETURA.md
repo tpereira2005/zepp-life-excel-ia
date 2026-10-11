@@ -26,11 +26,26 @@
 └── docs/
 ```
 
-Pastas privadas (ignoradas pelo Git): `inputs/`, `outputs/`, `arquivo/`, `docs/privado/`, `bin/`, `.venv/`, `config.json`.
+Pastas pessoais (ignoradas pelo Git):
+
+```
+├── Excel e JSON/          resultados: analise-historico-zepp-life.xlsx, dados-zepp-life-ia.json
+├── privado/
+│   ├── entradas/          CSV das medidas iniciais, exportação oficial completa da Zepp
+│   ├── exportacao-zepp/   última descarga da API (JSON e CSV)
+│   ├── historico/         versões anteriores do Excel/JSON/exportação, uma pasta por atualização
+│   ├── temporario/        tentativas falhadas (máx. 5) e bloqueio .atualizacao.lock
+│   ├── backups/           ZIPs de segurança com manifesto SHA-256
+│   ├── arquivo/           código e tentativas da versão 1.x, material das sessões Codex
+│   └── notas/             relatórios privados (dados reais)
+├── bin/zepp-reader.exe    leitor compilado
+├── .venv/                 ambiente Python
+└── config.json            configuração pessoal
+```
 
 ## Fluxo
 
-1. `atualizar-zepp.ps1` obtém um bloqueio exclusivo (`outputs/zepp-life/.atualizacao.lock`), confirma que o Excel está fechado e cria `temporario/<data>_<id>/`.
+1. `atualizar-zepp.ps1` obtém um bloqueio exclusivo (`privado/.atualizacao.lock`), confirma que o Excel está fechado e cria `temporario/<data>_<id>/`.
 2. O leitor Go recebe o pedido (token, conta ou código OAuth) **por stdin** e devolve `{token, weights}` por stdout. Nenhum segredo vai para argumentos, ficheiros ou registos.
 3. A exportação é validada (vazia, duplicados, pesagens perdidas por instante UTC).
 4. `python -m zepp_transformacao.gerar` lê as medidas manuais do Excel atual, calcula tudo em Python, escreve o livro com fórmulas nativas e verifica-o no Excel real; depois escreve o JSON com o SHA-256 do livro.

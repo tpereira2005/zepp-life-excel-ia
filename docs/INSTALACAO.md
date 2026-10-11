@@ -42,4 +42,4 @@ A conta e a sessão ficam em `%LOCALAPPDATA%\ZeppLifeExcel`, cifradas com DPAPI 
 
 ## Mover para outro computador
 
-Copie a pasta do projeto **incluindo** `config.json`, `inputs\` e `outputs\` (dados pessoais), execute `INSTALAR.cmd` e volte a autenticar-se: a cifra DPAPI não é transferível entre computadores ou utilizadores.
+Copie a pasta do projeto **incluindo** `config.json`, `Excel e JSON\` e `privado\` (dados pessoais), execute `INSTALAR.cmd` e volte a autenticar-se: a cifra DPAPI não é transferível entre computadores ou utilizadores.

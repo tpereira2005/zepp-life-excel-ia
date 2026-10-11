@@ -101,7 +101,7 @@ def construir(cfg: Config, selecao: Selecao, semanas: list[Semana], variacoes_ci
         "versao_esquema": VERSAO_ESQUEMA,
         "metadados": {
             "gerado_em_utc": gerado_em.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "gerador": f"zepp-life-transformacao {__version__}",
+            "gerador": f"zepp-life-excel-ia {__version__}",
             "fuso_horario": cfg.fuso_nome,
             "inicio_transformacao": _iso(cfg.inicio),
             "ultima_medicao_corporal_local": _iso(ultima.local),

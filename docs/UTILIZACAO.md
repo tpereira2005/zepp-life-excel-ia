@@ -13,9 +13,11 @@ O atualizador:
 3. gera o Excel e o JSON numa pasta temporária, preservando as medidas manuais do Excel atual;
 4. abre o livro no Microsoft Excel (cópia só de leitura), recalcula e confirma que todos os valores coincidem com os cálculos em Python;
 5. confirma que o hash do Excel coincide com o JSON;
-6. substitui os ficheiros e guarda as versões anteriores em `outputs\zepp-life\historico\<data-hora>\`.
+6. substitui os ficheiros e guarda as versões anteriores em `privado\historico\<data-hora>\`.
 
-Se algo falhar, nada é substituído (ou é reposto) e a janela indica o motivo e o registo em `outputs\zepp-life\temporario\`. São guardadas as 5 tentativas falhadas mais recentes.
+Os resultados ficam na pasta **`Excel e JSON\`**; tudo o resto (exportação, histórico, backups) fica em `privado\`.
+
+Se algo falhar, nada é substituído (ou é reposto) e a janela indica o motivo e o registo em `privado\temporario\`. São guardadas as 5 tentativas falhadas mais recentes.
 
 Se apagou pesagens de propósito na Zepp Life, a proteção contra perdas vai interromper a atualização. Nesse caso execute:
 
