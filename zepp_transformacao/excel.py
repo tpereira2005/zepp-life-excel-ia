@@ -63,6 +63,15 @@ COLUNA_CAMPO = {**{campo: COLUNA_CORPO[nome] for nome, campo in CAMPO_CORPO.item
                 "massa_gorda": COLUNA_CORPO["Massa gorda (kg)"]}
 # Amplitude mínima dos eixos Y (unidade da métrica): evita ampliar ruído de medição.
 AMPLITUDE_MINIMA = {"peso": 6, "gordura": 4, "musculo": 3, "cintura": 10, "pescoco": 3}
+# Painel desenhado para o ecrã do utilizador (janela com ~1858 px úteis, 1 carácter de largura ≈ 9 px,
+# 1 ponto de altura ≈ 1,667 px). Um único espaçamento (~27 px) em todo o lado: margens laterais,
+# espaços entre cartões (horizontais e verticais), antes dos gráficos e entre gráficos.
+ESPACO_LARGURA = 3          # caracteres ≈ 27 px
+ESPACO_ALTURA = 16.2        # pontos ≈ 27 px
+CARTAO_LARGURA = 15.9       # 3 colunas por cartão: 4 cartões + 5 espaços ≈ 1851 px
+LINHA_CARTAO = 17           # pontos
+# Linhas do Painel: 3/9/15/21 espaços entre blocos; gráficos ocupam 18 linhas e têm um espaço depois.
+GRAFICOS_LINHAS = [(22, 39), (41, 58), (60, 77), (79, 96)]
 
 borda = Side(style="thin", color=COR["linha"])
 
@@ -492,27 +501,30 @@ def construir(caminho: Path, cfg: Config, selecao: Selecao, semanas: list[Semana
             for r in (linha, linha + 1, linha + 4):
                 painel[f"{c1}{r}"].alignment = Alignment(horizontal="center", vertical="center")
     # Pensado para um monitor largo (~1900 px) a 100 %: margens A e Q com a largura dos espaços entre cartões.
-    _larguras(painel, [3] + [15.5, 15.5, 15.5, 3] * 3 + [15.5, 15.5, 15.5] + [3])
+    _larguras(painel, [ESPACO_LARGURA] + [CARTAO_LARGURA] * 3 + ([ESPACO_LARGURA] + [CARTAO_LARGURA] * 3) * 3
+              + [ESPACO_LARGURA])
     for r in range(3, 22):
-        painel.row_dimensions[r].height = 17 if r not in (3, 9, 15, 21) else 8
+        painel.row_dimensions[r].height = ESPACO_ALTURA if r in (3, 9, 15, 21) else LINHA_CARTAO
+    for _, fim in GRAFICOS_LINHAS:
+        painel.row_dimensions[fim + 1].height = ESPACO_ALTURA
 
     pesos = [l["Weight"] for l in leituras]
     graficos = [
         (grafico_diario(corpo, ultima, "B", "N", "Peso (kg)", COR["azul"], pesos, [m["Weight"] for m in moveis],
-                        AMPLITUDE_MINIMA["peso"], "kg"), (1, 22, 16, 40)),
+                        AMPLITUDE_MINIMA["peso"], "kg"), (1, GRAFICOS_LINHAS[0][0] - 1, 16, GRAFICOS_LINHAS[0][1])),
         (grafico_diario(corpo, ultima, "D", "O", "Gordura corporal (%)", COR["laranja"],
-                        [l["BodyFat"] for l in leituras], [m["BodyFat"] for m in moveis], AMPLITUDE_MINIMA["gordura"], "%"), (1, 41, 16, 59)),
+                        [l["BodyFat"] for l in leituras], [m["BodyFat"] for m in moveis], AMPLITUDE_MINIMA["gordura"], "%"), (1, GRAFICOS_LINHAS[1][0] - 1, 16, GRAFICOS_LINHAS[1][1])),
         (grafico_diario(corpo, ultima, "G", "P", "Massa muscular (kg)", COR["verde"],
-                        [l["MuscleMass"] for l in leituras], [m["MuscleMass"] for m in moveis], AMPLITUDE_MINIMA["musculo"], "kg"), (1, 60, 16, 78)),
-        (grafico_manual(manual, semanas, "C", "cintura", "Cintura (cm)", COR["laranja"], AMPLITUDE_MINIMA["cintura"]), (1, 79, 8, 97)),
-        (grafico_manual(manual, semanas, "E", "pescoco", "Pescoço (cm)", COR["azul"], AMPLITUDE_MINIMA["pescoco"]), (9, 79, 16, 97)),
+                        [l["MuscleMass"] for l in leituras], [m["MuscleMass"] for m in moveis], AMPLITUDE_MINIMA["musculo"], "kg"), (1, GRAFICOS_LINHAS[2][0] - 1, 16, GRAFICOS_LINHAS[2][1])),
+        (grafico_manual(manual, semanas, "C", "cintura", "Cintura (cm)", COR["laranja"], AMPLITUDE_MINIMA["cintura"]), (1, GRAFICOS_LINHAS[3][0] - 1, 8, GRAFICOS_LINHAS[3][1])),
+        (grafico_manual(manual, semanas, "E", "pescoco", "Pescoço (cm)", COR["azul"], AMPLITUDE_MINIMA["pescoco"]), (9, GRAFICOS_LINHAS[3][0] - 1, 16, GRAFICOS_LINHAS[3][1])),
     ]
     for ch, (c0, r0, c1, r1) in graficos:
         if isinstance(ch, ScatterChart):
             _escala_datas(ch.x_axis, _serie(min(l.local for l in leituras)), _serie(max(l.local for l in leituras)))
         # Âncora a duas células: o gráfico ocupa exatamente as colunas/linhas indicadas.
         painel.add_chart(ch, TwoCellAnchor(editAs="oneCell", _from=AnchorMarker(col=c0, row=r0), to=AnchorMarker(col=c1, row=r1)))
-    _nota(painel, "B99", "P99", "Gráficos de peso, gordura e músculo: pontos = leituras; linha = média móvel de 7 dias. "
+    _nota(painel, "B98", "P98", "Gráficos de peso, gordura e músculo: pontos = leituras; linha = média móvel de 7 dias. "
           "Cintura e pescoço: pontos = medições reais; tracejado = semanas sem medição (só visual, sem valores inventados). "
           "As escalas e os tracejados são recalculados em cada atualização.")
     painel.freeze_panes = "A3"

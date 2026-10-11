@@ -5,6 +5,7 @@
 - Mudança de hora: o Painel identifica a última pesagem pelo instante UTC (nova coluna oculta *Instante UTC* em Medições Corporais), não pela hora local. Antes, duas pesagens à mesma hora local (01:00–02:00 do último domingo de outubro) podiam mostrar o peso errado como "último".
 - As janelas de 7 dias e de 4 semanas usam o mínimo/máximo da hora local, tal como as fórmulas do Excel.
 - O livro é gerado mesmo que todas as datas das medidas manuais estejam vazias.
+- Painel com um único espaçamento (~27 px no ecrã de referência): margens laterais, espaços entre cartões na horizontal e na vertical, antes dos gráficos e entre gráficos; largura total ajustada a uma janela de ~1858 px.
 - Verificação no Excel mais robusta: filtro de mensagens COM (repete chamadas rejeitadas enquanto o Excel está ocupado), espera explícita até o Excel estar pronto, confirmação de que todas as folhas esperadas foram lidas e até 3 tentativas para falhas intermitentes da automação (nunca para diferenças de valores).
 
 ## 2.0.1 — 2026-10-11
