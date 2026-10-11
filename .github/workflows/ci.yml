@@ -17,8 +17,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: python -m pip install -r requirements-dev.txt
@@ -28,8 +28,8 @@ jobs:
     name: Testes do atualizador (Windows PowerShell)
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Criar .venv
@@ -48,8 +48,8 @@ jobs:
       run:
         working-directory: leitor
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: leitor/go.mod
           cache-dependency-path: leitor/go.sum
@@ -57,7 +57,7 @@ jobs:
       - run: go test ./pkg/zepp ./internal
       - name: Compilar zepp-reader.exe
         run: GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ../bin/zepp-reader.exe ./cmd/zepp-reader
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: zepp-reader-windows-amd64
           path: bin/zepp-reader.exe
