@@ -17,7 +17,7 @@ function Confirmar([bool]$condicao, [string]$descricao) {
 }
 function Resposta([int]$dias, [int]$remover = 0) {
     $saida = Join-Path $t 'resposta.json'
-    & $python -c "import json,sys; sys.path.insert(0, r'$raiz'); from zepp_transformacao import sintetico; w=sintetico.exportacao($dias)[${remover}:]; json.dump({'token':'utilizador:token-de-teste','weights':w}, open(r'$saida','w'))"
+    & $python -c "import json,sys; sys.path.insert(0, r'$raiz'); from zepp_life_excel_ia import sintetico; w=sintetico.exportacao($dias)[${remover}:]; json.dump({'token':'utilizador:token-de-teste','weights':w}, open(r'$saida','w'))"
     if ($LASTEXITCODE -ne 0) { throw 'Falha ao criar a resposta de teste.' }
 }
 function Atualizar([string[]]$extra) {
@@ -28,7 +28,7 @@ function Atualizar([string[]]$extra) {
 function Hash([string]$caminho) { (Get-FileHash -LiteralPath $caminho -Algorithm SHA256).Hash }
 
 try {
-    & $python -c "import sys; sys.path.insert(0, r'$raiz'); from pathlib import Path; from zepp_transformacao import sintetico; sintetico.criar_projeto(Path(r'$t'))"
+    & $python -c "import sys; sys.path.insert(0, r'$raiz'); from pathlib import Path; from zepp_life_excel_ia import sintetico; sintetico.criar_projeto(Path(r'$t'))"
     # Leitor falso: ignora o pedido em stdin e devolve a resposta preparada.
     Set-Content -LiteralPath (Join-Path $t 'leitor.cmd') -Value "@type `"%~dp0resposta.json`"`r`n@exit /b 0" -Encoding ASCII
     # Sessão fictícia guardada com DPAPI na pasta privada DE TESTE (nunca na real).

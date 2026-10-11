@@ -2,28 +2,28 @@ import hashlib
 import json
 import re
 import zipfile
-from argparse import Namespace
 from datetime import date, datetime, timedelta
+from itertools import pairwise
 from pathlib import Path
 
 import jsonschema
 import pytest
 from openpyxl import load_workbook
 
-from zepp_transformacao import gerar, sintetico, verificacao
-from zepp_transformacao.medidas import ler_existentes
+from zepp_life_excel_ia import gerar, sintetico, verificacao
+from zepp_life_excel_ia.medidas import ler_existentes
 
-ESQUEMA = json.loads((Path(__file__).resolve().parents[1] / "schema" / "dados-zepp-life-ia.schema.json").read_text(encoding="utf-8"))
+ESQUEMA = json.loads((Path(__file__).resolve().parents[1] / "schema" / "dados-zepp-life-ia.schema.json")
+                     .read_text(encoding="utf-8"))
 FOLHAS = ["Painel", "Resumo Mensal", "Resumo Semanal", "Medidas Manuais", "Medições Corporais", "Critérios e Qualidade"]
 
 
 def correr(projeto, existente=None, hoje="2026-05-02", nome="livro", excel_real=False):
     pasta = projeto["pasta"]
-    args = Namespace(origem=str(projeto["origem"]), excel=str(pasta / f"{nome}.xlsx"), json=str(pasta / f"{nome}.json"),
-                     existente=str(existente) if existente else None, config=str(projeto["config"]), hoje=hoje,
-                     sem_excel_real=not excel_real, graficos=None)
-    resultado = gerar.executar(args)
-    return Path(args.excel), json.loads(Path(args.json).read_text(encoding="utf-8")), resultado
+    livro, saida = pasta / f"{nome}.xlsx", pasta / f"{nome}.json"
+    resultado = gerar.gerar(projeto["origem"], livro, saida, existente=existente, config=projeto["config"],
+                            hoje=date.fromisoformat(hoje), verificar_excel=excel_real)
+    return livro, json.loads(saida.read_text(encoding="utf-8")), resultado
 
 
 def test_json_valido_reconciliado_e_sem_segredos(projeto):
@@ -69,11 +69,11 @@ def test_livro_estrutura_e_graficos(projeto):
     assert wb.sheetnames == FOLHAS
     assert all(ws.sheet_state == "visible" for ws in wb.worksheets)
     assert wb["Medidas Manuais"]["A3"].value == "Semana"
-    assert wb["Medições Corporais"].column_dimensions["Q"].hidden
+    assert wb["Medições Corporais"].column_dimensions["Q"].hidden and wb["Medições Corporais"].column_dimensions["R"].hidden
     lacunas = 0
-    semanas = resultado["semanas"]
+    semanas = resultado.calculos.semanas
     medidos = [i for i, s in enumerate(semanas) if s.cintura is not None]
-    lacunas = sum(1 for a, b in zip(medidos, medidos[1:]) if b - a > 1)
+    lacunas = sum(1 for a, b in pairwise(medidos) if b - a > 1)
     with zipfile.ZipFile(livro) as z:
         graficos = [z.read(n).decode("utf-8") for n in sorted(z.namelist()) if re.match(r"xl/charts/chart\d+\.xml", n)]
     assert len(graficos) == 5
@@ -126,16 +126,11 @@ def test_validado_no_excel_real(projeto, tmp_path):
         valores = verificacao.calcular_no_excel(livro, tmp_path / "graficos")
     except verificacao.ExcelIndisponivel:
         pytest.skip("Microsoft Excel não disponível")
-    from zepp_transformacao import resumos
-    selecao, semanas = resultado["selecao"], resultado["semanas"]
-    leituras = selecao.aceites
-    diferencas = verificacao.comparar(
-        valores, resultado["semanais"], resultado["mensais"], resumos.medias_moveis(leituras),
-        [l.massa_gorda for l in leituras], resumos.indicadores(leituras, semanas),
-        [resumos.variacoes_cintura(semanas)[s.inicio] for s in semanas], [s.estado for s in semanas])
-    assert diferencas == []
+    assert verificacao.comparar(valores, resultado.esperados) == []
     assert len(list((tmp_path / "graficos").glob("*.png"))) == 5
-
+    # A lista de esperados cobre todas as folhas com fórmulas.
+    folhas = {e.folha for e in resultado.esperados}
+    assert folhas == {"Painel", "Resumo Semanal", "Resumo Mensal", "Medidas Manuais", "Medições Corporais"}
 
 def test_ultima_pesagem_na_mudanca_de_hora(projeto):
     # Duas pesagens às 01:30 em Lisboa (UTC+1 e depois UTC+0): a última é a de maior instante UTC.
@@ -166,5 +161,5 @@ def test_gera_sem_nenhuma_data_manual(projeto):
 
 
 def test_comparacao_acusa_folhas_em_falta():
-    diferencas = verificacao.comparar({"folhas": {}, "erros": []}, [], [], [], [], {}, [], [])
+    diferencas = verificacao.comparar({"folhas": {}, "erros": []}, [])
     assert diferencas and "Folhas não lidas" in diferencas[0]

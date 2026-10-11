@@ -1,5 +1,19 @@
 # Registo de alterações
 
+## 2.1.0 — 2026-10-11
+
+Reorganização interna do código. O Excel (células, fórmulas, estilos, gráficos) e o JSON gerados são idênticos aos da versão 2.0.3, confirmado célula a célula em três casos (dados reais, fictícios e mudança de hora).
+
+- Pacote renomeado para `zepp_life_excel_ia`; linha de comandos `python -m zepp_life_excel_ia gerar | validar-exportacao`.
+- `metricas.py`: registo único das métricas (antes repetidas em 4–5 sítios).
+- `excel/`: o antigo `excel.py` (632 linhas, uma função de ~270) dividido em estilos, gráficos e um módulo por folha; letras de coluna obtidas pelos cabeçalhos.
+- Verificação no Excel sem endereços repetidos: cada folha regista o valor esperado onde escreve a fórmula (`Esperado`); `verificacao.comparar` só percorre essa lista.
+- `resumos.py`: `Periodo`, `Indicador`, `IndicadorManual` e `Calculos` (dataclasses) em vez de dicionários com chaves em texto.
+- `gerar.gerar()` é uma função normal (já não recebe os argumentos da linha de comandos).
+- Validação da exportação passou do PowerShell para Python (`exportacao.py`, com testes); o atualizador usa uma única função para chamar o Python e passa a mostrar o motivo exato das recusas.
+- `datas.py`: conversão de datas do Excel num só sítio (estava repetida em 4).
+- `pyproject.toml` (substitui `pytest.ini`; versão num só sítio) e ruff no CI.
+
 ## 2.0.3 — 2026-10-11
 
 - Projeto renomeado para **zepp-life-excel-ia** (pasta e repositório).

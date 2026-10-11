@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zepp-life-excel-ia"
+dynamic = ["version"]
+description = "Da balança Xiaomi (Zepp Life) para um Excel nativo e um JSON pronto para IA."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = ["openpyxl==3.1.5", "et_xmlfile==2.0.0", "tzdata==2026.5"]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1", "jsonschema==4.26.0", "ruff==0.17.0"]
+
+[tool.setuptools.dynamic]
+version = { attr = "zepp_life_excel_ia.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["zepp_life_excel_ia*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 130
+target-version = "py311"
+extend-exclude = ["privado", "Excel e JSON", "leitor"]
+
+[tool.ruff.lint]
+# E/W: estilo; F: erros (imports por usar, nomes indefinidos); I: ordem dos imports; B: erros comuns.
+select = ["E", "W", "F", "I", "B"]
+# E731: as fórmulas Excel usam lambdas curtas com nome, de propósito (legibilidade das fórmulas).
+ignore = ["E731"]

@@ -2,8 +2,8 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
-from zepp_transformacao import sintetico
-from zepp_transformacao.leituras import converter, selecionar
+from zepp_life_excel_ia import sintetico
+from zepp_life_excel_ia.leituras import converter, selecionar
 
 
 def test_contagens_reconciliadas_e_motivos(projeto):
@@ -14,8 +14,8 @@ def test_contagens_reconciliadas_e_motivos(projeto):
     assert c["aceites"] + c["anteriores_ao_inicio"] + c["incompletas"] + c["implausiveis"] + c["outro_perfil"] == c["origem"]
     assert c["anteriores_ao_inicio"] > 0 and c["incompletas"] > 0
     assert all(m == "composição incompleta: só peso, sem bioimpedância" for _, m in selecao.excluidas)
-    assert [l.instante_utc for l in selecao.aceites] == sorted(l.instante_utc for l in selecao.aceites)
-    assert all(l.local.date() >= projeto["cfg"].inicio for l in selecao.aceites)
+    assert [lt.instante_utc for lt in selecao.aceites] == sorted(lt.instante_utc for lt in selecao.aceites)
+    assert all(lt.local.date() >= projeto["cfg"].inicio for lt in selecao.aceites)
 
 
 def test_outro_perfil_e_implausivel_excluidos(projeto):

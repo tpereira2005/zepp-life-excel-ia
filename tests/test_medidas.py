@@ -1,10 +1,11 @@
 from datetime import date
+from itertools import pairwise
 
 import pytest
 from openpyxl import Workbook
 
-from zepp_transformacao import medidas
-from zepp_transformacao.medidas import Semana, combinar, domingo, leituras_das_notas, ler_csv, ler_existentes, rotulo
+from zepp_life_excel_ia import medidas
+from zepp_life_excel_ia.medidas import Semana, combinar, domingo, leituras_das_notas, ler_csv, ler_existentes, rotulo
 
 
 def test_semana_domingo_a_sabado():
@@ -45,7 +46,8 @@ def _livro(caminho, linhas, cabecalhos=medidas.CABECALHOS):
 
 
 def test_le_por_cabecalho_mesmo_com_coluna_inserida(tmp_path):
-    cab = ["Semana", "Nova coluna", "Data da medição", "Cintura (cm)", "Variação da cintura (cm)", "Pescoço (cm)", "Estado", "Observações"]
+    cab = ["Semana", "Nova coluna", "Data da medição", "Cintura (cm)", "Variação da cintura (cm)", "Pescoço (cm)",
+           "Estado", "Observações"]
     caminho = tmp_path / "livro.xlsx"
     _livro(caminho, [["04/01/2026 - 10/01/2026", "x", date(2026, 1, 5), 90.5, None, 39.0, "Completa", "nota"]], cab)
     s = ler_existentes(caminho)[date(2026, 1, 4)]
@@ -87,7 +89,7 @@ def test_prioridade_excel_sobre_csv_incluindo_apagados(projeto):
     assert (primeira.data, primeira.cintura, primeira.pescoco, primeira.notas) == (date(2026, 1, 6), 91.0, None, None)
     assert semanas[1].origem == "csv"
     assert semanas[-1].inicio == domingo(date(2026, 4, 30)) and semanas[-1].origem == "nova"
-    assert all((b.inicio - a.inicio).days == 7 for a, b in zip(semanas, semanas[1:]))
+    assert all((b.inicio - a.inicio).days == 7 for a, b in pairwise(semanas))
 
 
 def test_semanas_existentes_fora_do_intervalo_sao_mantidas():

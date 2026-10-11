@@ -8,6 +8,8 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .datas import serie_excel
+
 NS = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 REL_ID = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
 ERROS = ("#REF!", "#DIV/0!", "#VALUE!", "#NAME?", "#N/A", "#NUM!", "#NULL!", "#SPILL!", "#CALC!")
@@ -53,9 +55,9 @@ def ler_livro(caminho: Path, permitir_erros: bool = False) -> dict[str, list[lis
                     elif tipo == "d" and valor is not None:
                         # OOXML permite datas ISO 8601 além de números de série.
                         instante = datetime.fromisoformat(valor.replace("Z", "+00:00"))
-                        if instante.tzinfo is None:
-                            instante = instante.replace(tzinfo=timezone.utc)
-                        valor = (instante - datetime(1899, 12, 30, tzinfo=timezone.utc)).total_seconds() / 86400
+                        if instante.tzinfo is not None:
+                            instante = instante.astimezone(timezone.utc)
+                        valor = serie_excel(instante)
                     elif tipo == "b" and valor is not None:
                         valor = valor == "1"
                     elif tipo == "e":

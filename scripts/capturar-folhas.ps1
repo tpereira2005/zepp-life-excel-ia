@@ -9,16 +9,10 @@ param(
     [Parameter(Mandatory)][string[]]$Intervalos
 )
 $ErrorActionPreference = 'Stop'
-function Repetir([scriptblock]$acao) {
-    for ($tentativa = 1; ; $tentativa++) {
-        try { & $acao; return }
-        catch { if ($tentativa -ge 120 -or $_.Exception.Message -notmatch '0x8001010A|0x80010001|0x800A03EC|RPC_E|CopyPicture') { throw }; Start-Sleep -Milliseconds 500 }
-    }
-}
+. (Join-Path $PSScriptRoot 'excel-com.ps1')
 [void](New-Item -ItemType Directory -Force -Path $Pasta)
 $copia = Join-Path ([IO.Path]::GetTempPath()) ('zepp-captura-' + [guid]::NewGuid().ToString('N') + '.xlsx')
 Copy-Item -LiteralPath $Livro -Destination $copia
-. (Join-Path $PSScriptRoot 'excel-com.ps1')
 Iniciar-FiltroExcel
 $excel = New-Object -ComObject Excel.Application
 try {
@@ -31,15 +25,15 @@ try {
         $ws = $wb.Worksheets.Item($folha)
         $ws.Activate()
         $intervalo = $ws.Range($endereco)
-        Repetir { [void]$intervalo.CopyPicture(1, 2) }   # xlScreen, xlBitmap
+        Repetir-Excel { [void]$intervalo.CopyPicture(1, 2) }   # xlScreen, xlBitmap
         $grafico = $ws.ChartObjects().Add(0, 0, $intervalo.Width, $intervalo.Height)
         $grafico.Activate()
         $grafico.Chart.ChartArea.Format.Line.Visible = 0
-        Repetir { [void]$grafico.Chart.Paste() }
+        Repetir-Excel { [void]$grafico.Chart.Paste() }
         $nome = ($folha.Normalize([Text.NormalizationForm]::FormD) -replace '\p{Mn}', '' -replace '[^A-Za-z0-9]+', '-').ToLowerInvariant().Trim('-')
         $destino = Join-Path $Pasta ($nome + '.png')
         for ($n = 2; Test-Path -LiteralPath $destino; $n++) { $destino = Join-Path $Pasta ($nome + '-' + $n + '.png') }
-        Repetir { [void]$grafico.Chart.Export($destino, 'PNG') }
+        Repetir-Excel { [void]$grafico.Chart.Export($destino, 'PNG') }
         $grafico.Delete()
         Write-Host $destino
     }

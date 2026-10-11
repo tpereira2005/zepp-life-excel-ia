@@ -1,56 +1,12 @@
 """Leitura da exportação Zepp e seleção das pesagens aceites."""
 from __future__ import annotations
 
-import json
 import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
 
 from .config import Config
-
-
-@dataclass(frozen=True)
-class Metrica:
-    campo: str          # nome na exportação do leitor
-    chave: str          # chave no JSON para IA
-    nome: str           # nome apresentado no Excel
-    unidade: str
-    significado: str
-    origem: str         # balança | aplicação | derivada
-
-
-# Lista explícita: nada fora desta lista é exportado (nem token, conta ou identificadores).
-METRICAS = [
-    Metrica("Weight", "peso_kg", "Peso", "kg", "Peso medido pela balança", "balança"),
-    Metrica("Height", "altura_cm", "Altura", "cm", "Altura do perfil associada à leitura", "aplicação"),
-    Metrica("BMI", "imc", "IMC", "kg/m²", "Índice de massa corporal", "aplicação"),
-    Metrica("BodyFat", "gordura_corporal_percentagem", "Gordura corporal", "%", "Estimativa por bioimpedância", "aplicação"),
-    Metrica("BodyWater", "agua_corporal_percentagem", "Água corporal", "%", "Estimativa de água corporal", "aplicação"),
-    Metrica("BoneMass", "massa_ossea_kg", "Massa óssea", "kg", "Estimativa; não é densidade mineral óssea", "aplicação"),
-    Metrica("MuscleMass", "massa_muscular_kg", "Massa muscular", "kg", "Estimativa de massa muscular", "aplicação"),
-    Metrica("ProteinRatio", "proteina_percentagem", "Proteína", "%", "Proporção estimada de proteína", "aplicação"),
-    Metrica("ProteinMass", "massa_proteica_kg", "Massa proteica", "kg", "Derivada pelo leitor: peso × proteína / 100", "derivada"),
-    Metrica("VisceralFat", "gordura_visceral_indice", "Gordura visceral", "índice", "Índice da aplicação; não é percentagem (inteiro no leitor)", "aplicação"),
-    Metrica("BasalMetabolism", "metabolismo_basal_kcal_dia", "Metabolismo basal", "kcal/dia", "Estimativa de gasto basal (inteiro no leitor)", "aplicação"),
-    Metrica("MetabolicAge", "idade_corporal_anos", "Idade corporal", "anos", "Estimativa; não é idade cronológica", "aplicação"),
-    Metrica("BodyScore", "pontuacao_corporal", "Pontuação corporal", "pontos", "Pontuação global da aplicação", "aplicação"),
-    Metrica("PhysiqueRating", "classificacao_fisica_codigo", "Classificação física", "código", "Código original, sem interpretação documentada", "aplicação"),
-    Metrica("StandBodyWeight", "peso_padrao_kg", "Peso padrão", "kg", "Referência da aplicação; não é um objetivo individual", "aplicação"),
-    Metrica("Impedance", "impedancia_ohm", "Impedância", "Ω", "Impedância registada pela balança", "balança"),
-]
-
-# Uma leitura só é aceite com composição corporal completa.
-CAMPOS_COMPOSICAO = ["BMI", "BodyFat", "BodyWater", "BoneMass", "BasalMetabolism", "MuscleMass",
-                     "VisceralFat", "ProteinMass", "ProteinRatio", "MetabolicAge", "BodyScore"]
-
-# Limites largos: apanham erros de leitura evidentes, não julgam a composição corporal.
-LIMITES = {
-    "Weight": (30, 250), "BMI": (10, 60), "BodyFat": (2, 70), "BodyWater": (25, 80),
-    "BoneMass": (0.5, 8), "MuscleMass": (15, 150), "ProteinRatio": (5, 35),
-    "VisceralFat": (1, 59), "BasalMetabolism": (700, 4500), "MetabolicAge": (10, 100),
-    "BodyScore": (0, 100),
-}
+from .metricas import CAMPOS_COMPOSICAO, DA_EXPORTACAO, LIMITES
 
 
 @dataclass
@@ -66,6 +22,8 @@ class Leitura:
         return int(self.instante_utc.timestamp())
 
     def __getitem__(self, campo: str):
+        if campo == "massa_gorda":
+            return self.massa_gorda
         return self.valores.get(campo)
 
     @property
@@ -84,13 +42,6 @@ def _numero(valor) -> bool:
     return isinstance(valor, (int, float)) and not isinstance(valor, bool) and math.isfinite(valor)
 
 
-def carregar_exportacao(caminho: Path) -> list[dict]:
-    dados = json.loads(Path(caminho).read_text(encoding="utf-8-sig"))
-    if not isinstance(dados, list) or not dados:
-        raise ValueError("Exportação vazia ou inválida.")
-    return dados
-
-
 def converter(registo: dict, cfg: Config) -> Leitura:
     data = registo.get("Date")
     peso = registo.get("Weight")
@@ -106,7 +57,7 @@ def converter(registo: dict, cfg: Config) -> Leitura:
         instante_utc=instante.astimezone(timezone.utc),
         local=local.replace(tzinfo=None),
         desvio_utc=f"{desvio[:3]}:{desvio[3:]}",
-        valores={m.campo: registo.get(m.campo) for m in METRICAS},
+        valores={m.campo: registo.get(m.campo) for m in DA_EXPORTACAO},
         perfil_id=int(perfil) if _numero(perfil) else None,
     )
 
@@ -130,8 +81,8 @@ def motivo_exclusao(leitura: Leitura, cfg: Config) -> str | None:
 
 
 def selecionar(registos: list[dict], cfg: Config) -> Selecao:
-    leituras = sorted((converter(r, cfg) for r in registos), key=lambda l: l.instante_utc)
-    instantes = [l.id_medicao for l in leituras]
+    leituras = sorted((converter(r, cfg) for r in registos), key=lambda lt: lt.instante_utc)
+    instantes = [lt.id_medicao for lt in leituras]
     if len(set(instantes)) != len(instantes):
         raise ValueError("Existem pesagens duplicadas no mesmo instante; rever a exportação.")
     contagens = {"origem": len(leituras), "anteriores_ao_inicio": 0, "incompletas": 0,

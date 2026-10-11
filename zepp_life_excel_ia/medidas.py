@@ -7,13 +7,16 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+from .datas import data_de_serie
 from .xlsx_bruto import ler_livro
 
 FOLHA = "Medidas Manuais"
 CABECALHOS = ["Semana", "Data da medição", "Cintura (cm)", "Variação da cintura (cm)",
               "Pescoço (cm)", "Estado", "Observações"]
 LIMITES = {"cintura": (1, 300), "pescoco": (1, 150)}
-EPOCA_EXCEL = date(1899, 12, 30)
+# Estado (JSON) -> texto mostrado pela fórmula da coluna Estado no Excel.
+ESTADOS_EXCEL = {"completa": "Completa", "incompleta": "Incompleta", "sem_medicao": "Sem medição",
+                 "por_preencher": "Por preencher"}
 
 
 def domingo(dia: date) -> date:
@@ -67,7 +70,7 @@ def _data(valor, semana: str) -> date | None:
     if valor is None or valor == "":
         return None
     if isinstance(valor, (int, float)) and not isinstance(valor, bool):
-        return EPOCA_EXCEL + timedelta(days=math.floor(valor))
+        return data_de_serie(valor)
     if isinstance(valor, str):
         texto = valor.strip()
         for formato in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y %H:%M", "%Y-%m-%dT%H:%M:%S"):
@@ -96,7 +99,7 @@ def ler_existentes(caminho: Path) -> dict[date, Semana]:
     linhas = ler_livro(caminho, permitir_erros=True).get(FOLHA)
     if linhas is None:
         raise ValueError(f"A folha '{FOLHA}' não existe no Excel atual.")
-    indice = next((i for i, l in enumerate(linhas) if l and l[0] == "Semana"), None)
+    indice = next((i for i, lt in enumerate(linhas) if lt and lt[0] == "Semana"), None)
     if indice is None:
         raise ValueError("Cabeçalhos das medidas manuais não encontrados.")
     cab = [str(c).strip() if c is not None else None for c in linhas[indice]]
@@ -107,7 +110,8 @@ def ler_existentes(caminho: Path) -> dict[date, Semana]:
     col = {nome: cab.index(nome) for nome in obrigatorios}
     semanas: dict[date, Semana] = {}
     for linha in linhas[indice + 1:]:
-        valor = lambda nome: linha[col[nome]] if col[nome] < len(linha) else None
+        def valor(nome, linha=linha):
+            return linha[col[nome]] if col[nome] < len(linha) else None
         texto = valor("Semana")
         if texto is None or str(texto).strip() == "":
             continue

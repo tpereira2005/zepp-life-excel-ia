@@ -53,3 +53,23 @@ INSTALAR.cmd
 powershell -NoProfile -ExecutionPolicy Bypass -File tests\atualizador.Tests.ps1
 .venv\Scripts\python scripts\gerar_demo.py
 ```
+
+## Reorganização do código (2.1.0)
+
+Objetivo: facilitar a manutenção sem mudar o resultado.
+
+| Problema | Alteração | Onde |
+|---|---|---|
+| Endereços das células repetidos entre o gerador e a verificação | Cada folha regista `Esperado(folha, célula, valor)` ao escrever a fórmula; a verificação percorre a lista | `excel/folha_*.py`, `verificacao.py` |
+| Cada métrica definida em 4–5 sítios | Registo único `Metrica` + listas de ordem (`COLUNAS_MEDICOES`, `RESUMO`, `MEDIAS_MOVEIS`) | `metricas.py` |
+| `excel.py` com 632 linhas e uma função de ~270 | Pacote `excel/` com estilos, gráficos e um módulo por folha; colunas pelos cabeçalhos | `excel/` |
+| Dicionários com chaves em texto | `Periodo`, `Indicador`, `IndicadorManual`, `Calculos` | `resumos.py` |
+| Ponto de entrada ligado ao argparse | `gerar.gerar()` + `__main__.py` com subcomandos | `gerar.py`, `__main__.py` |
+| Validação da exportação em PowerShell, sem testes unitários | `exportacao.validar` com 8 testes; `Invoke-Python` único no atualizador | `exportacao.py`, `scripts/atualizar-zepp.ps1` |
+| Conversões de datas do Excel repetidas | `datas.py` | |
+| Sem verificador de código | ruff no CI; `pyproject.toml` | |
+
+**Como foi verificado:** antes de alterar, geraram-se referências (Excel + JSON) com o código anterior para três casos — dados reais, dados fictícios e um caso com duas pesagens à mesma hora local na mudança de hora. Depois de cada passo, um comparador verificou cada célula (valor, fórmula, número, letra, preenchimento, bordas, alinhamento), células unidas, larguras, alturas, painéis fixos, tabelas, validações, formatação condicional, o XML dos gráficos e dos desenhos, e todo o JSON (exceto data de geração, versão e hash): **0 diferenças** nos três casos. A nova lista de células esperadas cobre as mesmas células que a verificação anterior (ex.: 227 × 4 em Medições, 34 × 19 no Resumo Semanal) e foi confirmada no Excel real. Testes: 42 pytest, testes do atualizador, ruff sem avisos.
+
+Nota encontrada durante o trabalho: no Windows PowerShell 5.1, redirecionar o stderr do Python com `*>>` embrulhava cada linha num registo de erro ("python.exe : ERRO: …") partido pela largura da consola, pelo que a mensagem de erro não era encontrada. O atualizador passou a gravar cada linha como texto simples.
+

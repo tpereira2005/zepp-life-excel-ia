@@ -77,7 +77,7 @@ Tudo explicado em [docs/DADOS-E-REGRAS.md](docs/DADOS-E-REGRAS.md) e [docs/JSON-
 ```mermaid
 flowchart LR
     A[Zepp Life<br/>API] -->|zepp-reader.exe<br/>stdin/stdout| B[atualizar-zepp.ps1]
-    B -->|exportação JSON| C[zepp_transformacao<br/>Python]
+    B -->|exportação JSON| C[zepp_life_excel_ia<br/>Python]
     D[(Excel atual<br/>medidas manuais)] --> C
     C --> E[Excel nativo<br/>openpyxl]
     C --> F[JSON para IA<br/>esquema 2.0.0]
@@ -96,6 +96,7 @@ Os dados corporais são pessoais. O repositório **não contém** dados reais: `
 ```bat
 .venv\Scripts\python -m pip install -r requirements-dev.txt
 .venv\Scripts\python -m pytest
+.venv\Scripts\python -m ruff check .
 powershell -NoProfile -ExecutionPolicy Bypass -File tests\atualizador.Tests.ps1
 ```
 

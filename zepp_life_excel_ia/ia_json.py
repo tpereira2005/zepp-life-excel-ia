@@ -4,14 +4,13 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 from . import __version__
-from .config import Config
-from .leituras import CAMPOS_COMPOSICAO, LIMITES, METRICAS, Selecao
-from .medidas import Semana, leituras_das_notas
-from .resumos import METRICAS_RESUMO, Indicador
+from .medidas import leituras_das_notas
+from .metricas import CAMPOS_COMPOSICAO, DA_EXPORTACAO, INDICADORES, LIMITES, MEDIAS_MOVEIS, POR_CAMPO, RESUMO
+from .resumos import Calculos, Indicador, IndicadorManual, Periodo
 
 VERSAO_ESQUEMA = "2.0.0"
 CASAS = 3  # arredondamento dos valores derivados (médias, variações)
@@ -34,18 +33,16 @@ def _iso(valor) -> str | None:
     return valor.isoformat(timespec="seconds") if isinstance(valor, datetime) else valor.isoformat()
 
 
-def _periodo(p: dict, extra: list[str]) -> dict:
-    saida = {"rotulo": p["rotulo"], "inicio": _iso(p["inicio"]), "fim": _iso(p["fim"]),
-             "leituras": p["leituras"], "dias_com_medicao": p["dias_com_medicao"], "parcial": p["parcial"]}
-    for chave, _, _ in METRICAS_RESUMO[:1]:
-        saida[chave] = _r(p[chave])
-    saida["variacao_peso_kg"] = _r(p["variacao_peso_kg"])
-    saida[METRICAS_RESUMO[1][0]] = _r(p[METRICAS_RESUMO[1][0]])
-    saida["variacao_gordura_pp"] = _r(p["variacao_gordura_pp"])
-    for chave, _, _ in METRICAS_RESUMO[2:]:
-        saida[chave] = _r(p[chave])
-    for chave in extra:
-        saida[chave] = _r(p[chave])
+def _periodo(p: Periodo) -> dict:
+    saida = {"rotulo": p.rotulo, "inicio": _iso(p.inicio), "fim": _iso(p.fim),
+             "leituras": p.leituras, "dias_com_medicao": p.dias_com_medicao, "parcial": p.parcial}
+    for campo in RESUMO:
+        saida[POR_CAMPO[campo].resumo] = _r(p.medias[campo])
+        if campo == "Weight":
+            saida["variacao_peso_kg"] = _r(p.variacao_peso_kg)
+        elif campo == "BodyFat":
+            saida["variacao_gordura_pp"] = _r(p.variacao_gordura_pp)
+    saida.update({chave: _r(valor) for chave, valor in p.manuais.items()})
     return saida
 
 
@@ -55,48 +52,50 @@ def _indicador(i: Indicador) -> dict:
             "ritmo_por_semana_ultimas_4_semanas": _r(i.ritmo_semanal_4s)}
 
 
-def construir(cfg: Config, selecao: Selecao, semanas: list[Semana], variacoes_cintura: dict,
-              semanais: list[dict], mensais: list[dict], moveis: list[dict], indicadores: dict,
-              caminho_excel: Path, gerado_em: datetime) -> dict:
-    leituras = selecao.aceites
+def _dicionario() -> dict:
+    """Unidade, significado e origem de cada chave do JSON (a partir do registo de métricas)."""
+    def descricao(unidade, significado, origem):
+        return {"unidade": unidade, "significado": significado, "origem": origem}
+    dic = {m.chave: descricao(m.unidade, m.significado, m.origem) for m in DA_EXPORTACAO}
+    gorda = POR_CAMPO["massa_gorda"]
+    dic[gorda.chave] = descricao(gorda.unidade, gorda.significado, gorda.origem)
+    for m in MEDIAS_MOVEIS:
+        dic[m.chave] = descricao(POR_CAMPO[m.campo].unidade, m.significado, "derivada")
+    dic["cintura_cm"] = descricao("cm", "Circunferência ao nível do umbigo; média de 3 leituras arredondada a 0,1",
+                                  "manual")
+    dic["pescoco_cm"] = descricao("cm", "Circunferência do pescoço; média de 3 leituras arredondada a 0,1", "manual")
+    return dic
+
+
+def _indicador_manual(i: IndicadorManual | None) -> dict | None:
+    return None if i is None else {
+        "primeira": i.primeira, "data_primeira": _iso(i.data_primeira), "ultima": i.ultima,
+        "data_ultima": _iso(i.data_ultima), "variacao_desde_inicio": _r(i.variacao), "medicoes": i.medicoes}
+
+
+def construir(calc: Calculos, caminho_excel: Path, gerado_em: datetime) -> dict:
+    cfg, selecao, leituras = calc.cfg, calc.selecao, calc.leituras
     ultima = leituras[-1]
-    metricas_dic = {m.chave: {"unidade": m.unidade, "significado": m.significado, "origem": m.origem} for m in METRICAS}
-    metricas_dic.update({
-        "massa_gorda_kg": {"unidade": "kg", "significado": "peso_kg × gordura_corporal_percentagem / 100", "origem": "derivada"},
-        "peso_media_7d_kg": {"unidade": "kg", "significado": "Média das leituras aceites em ]t − 7 dias, t]", "origem": "derivada"},
-        "gordura_media_7d_percentagem": {"unidade": "%", "significado": "Média móvel de 7 dias da gordura", "origem": "derivada"},
-        "musculo_media_7d_kg": {"unidade": "kg", "significado": "Média móvel de 7 dias da massa muscular", "origem": "derivada"},
-        "cintura_cm": {"unidade": "cm", "significado": "Circunferência ao nível do umbigo; média de 3 leituras arredondada a 0,1", "origem": "manual"},
-        "pescoco_cm": {"unidade": "cm", "significado": "Circunferência do pescoço; média de 3 leituras arredondada a 0,1", "origem": "manual"},
-    })
     medicoes = []
-    for l, mm in zip(leituras, moveis):
-        registo = {"id_medicao": l.id_medicao, "data_hora_local": _iso(l.local),
-                   "data_hora_utc": l.instante_utc.strftime("%Y-%m-%dT%H:%M:%SZ"), "desvio_utc": l.desvio_utc}
-        registo.update({m.chave: l[m.campo] for m in METRICAS})
-        registo["massa_gorda_kg"] = _r(l.massa_gorda)
-        registo["peso_media_7d_kg"] = _r(mm["Weight"])
-        registo["gordura_media_7d_percentagem"] = _r(mm["BodyFat"])
-        registo["musculo_media_7d_kg"] = _r(mm["MuscleMass"])
+    for lt, mm in zip(leituras, calc.moveis, strict=True):
+        registo = {"id_medicao": lt.id_medicao, "data_hora_local": _iso(lt.local),
+                   "data_hora_utc": lt.instante_utc.strftime("%Y-%m-%dT%H:%M:%SZ"), "desvio_utc": lt.desvio_utc}
+        registo.update({m.chave: lt[m.campo] for m in DA_EXPORTACAO})
+        registo[POR_CAMPO["massa_gorda"].chave] = _r(lt.massa_gorda)
+        registo.update({m.chave: _r(mm[m.campo]) for m in MEDIAS_MOVEIS})
         medicoes.append(registo)
     manuais = []
-    for s in semanas:
+    for s in calc.semanas:
         cintura_l, pescoco_l = leituras_das_notas(s.notas)
         manuais.append({
             "semana_inicio": _iso(s.inicio), "semana_fim": _iso(s.fim),
             "data_medicao": _iso(s.data) if s.medida else None,
             "cintura_cm": s.cintura, "pescoco_cm": s.pescoco,
-            "variacao_cintura_cm": _r(variacoes_cintura[s.inicio]),
+            "variacao_cintura_cm": _r(calc.variacoes_cintura[s.inicio]),
             "cintura_leituras_cm": cintura_l if s.cintura is not None else None,
             "pescoco_leituras_cm": pescoco_l if s.pescoco is not None else None,
             "estado": s.estado, "observacoes": s.notas,
         })
-    manual_ind = {}
-    for nome in ("cintura_cm", "pescoco_cm"):
-        v = indicadores[nome]
-        manual_ind[nome] = None if v is None else {
-            "primeira": v["primeira"], "data_primeira": _iso(v["data_primeira"]), "ultima": v["ultima"],
-            "data_ultima": _iso(v["data_ultima"]), "variacao_desde_inicio": _r(v["variacao"]), "medicoes": v["medicoes"]}
     dados = {
         "versao_esquema": VERSAO_ESQUEMA,
         "metadados": {
@@ -109,7 +108,8 @@ def construir(cfg: Config, selecao: Selecao, semanas: list[Semana], variacoes_ci
             "ficheiro_excel": caminho_excel.name,
             "sha256_excel": hashlib.sha256(caminho_excel.read_bytes()).hexdigest(),
             "origem": "Exportação Zepp Life e campos manuais guardados no Excel",
-            "privacidade": "Dados pessoais corporais. Sem credenciais, tokens, email, identificadores de conta ou do dispositivo.",
+            "privacidade": "Dados pessoais corporais. Sem credenciais, tokens, email, identificadores de conta "
+                           "ou do dispositivo.",
         },
         "convencoes": {
             "datas": "ISO 8601. data_hora_local é a hora de Europe/Lisbon sem desvio; data_hora_utc e desvio_utc "
@@ -124,7 +124,8 @@ def construir(cfg: Config, selecao: Selecao, semanas: list[Semana], variacoes_ci
             "variacoes": "Peso e gordura: média do período menos a do período anterior; gordura em pontos percentuais. "
                          "Cintura: medição menos a medição anterior disponível.",
             "periodos_parciais": "parcial=true se o período começa antes do início ou termina depois da última leitura.",
-            "arredondamento": f"Valores derivados arredondados a {CASAS} casas decimais; valores medidos mantidos como exportados.",
+            "arredondamento": f"Valores derivados arredondados a {CASAS} casas decimais; valores medidos "
+                              "mantidos como exportados.",
             "graficos": "Tracejados nos gráficos são apenas visuais; não existem valores interpolados.",
             "limites": "Composição, idade e pontuação são estimativas da aplicação, não diagnósticos clínicos.",
         },
@@ -140,22 +141,20 @@ def construir(cfg: Config, selecao: Selecao, semanas: list[Semana], variacoes_ci
             "exclusoes": "Pesagens excluídas não entram em médias; estão listadas em pesagens_excluidas. "
                          "Sono, atividade e frequência cardíaca não são incluídos.",
         },
-        "dicionario_metricas": metricas_dic,
+        "dicionario_metricas": _dicionario(),
         "indicadores": {
             "descricao": "Média 7 dias inicial = primeiros 7 dias de leituras; atual = últimos 7 dias. "
                          "Ritmo = (média dos últimos 7 dias − média de há 3 semanas) / 3.",
-            "peso_kg": _indicador(indicadores["peso_kg"]),
-            "gordura_corporal_percentagem": _indicador(indicadores["gordura_corporal_percentagem"]),
-            "massa_muscular_kg": _indicador(indicadores["massa_muscular_kg"]),
-            **manual_ind,
+            **{POR_CAMPO[c].chave: _indicador(calc.indicadores[POR_CAMPO[c].chave]) for c in INDICADORES},
+            **{nome: _indicador_manual(calc.indicadores[nome]) for nome in ("cintura_cm", "pescoco_cm")},
         },
         "medicoes_corporais": medicoes,
         "pesagens_excluidas": [
-            {"id_medicao": l.id_medicao, "data_hora_local": _iso(l.local), "peso_kg": l["Weight"], "motivo": motivo}
-            for l, motivo in selecao.excluidas],
+            {"id_medicao": lt.id_medicao, "data_hora_local": _iso(lt.local), "peso_kg": lt["Weight"], "motivo": motivo}
+            for lt, motivo in selecao.excluidas],
         "medidas_manuais": manuais,
-        "resumos_semanais": [_periodo(p, ["cintura_cm", "variacao_cintura_cm", "pescoco_cm"]) for p in semanais],
-        "resumos_mensais": [_periodo(p, ["cintura_media_cm", "pescoco_medio_cm"]) for p in mensais],
+        "resumos_semanais": [_periodo(p) for p in calc.semanais],
+        "resumos_mensais": [_periodo(p) for p in calc.mensais],
     }
     return dados
 

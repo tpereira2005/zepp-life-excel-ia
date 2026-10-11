@@ -59,3 +59,15 @@ function Abrir-LivroExcel($excel, [string]$caminho) {
     Esperar-Excel $excel
     return , $livro
 }
+
+# Operações com a área de transferência (CopyPicture, Paste, Export) falham por vezes de forma
+# transitória (0x800A03EC) mesmo com o filtro de mensagens: tentar de novo durante até 60 s.
+function Repetir-Excel([scriptblock]$acao) {
+    for ($tentativa = 1; ; $tentativa++) {
+        try { & $acao; return }
+        catch {
+            if ($tentativa -ge 120 -or $_.Exception.Message -notmatch '0x800A03EC|0x8001010A|0x80010001|CopyPicture') { throw }
+            Start-Sleep -Milliseconds 500
+        }
+    }
+}

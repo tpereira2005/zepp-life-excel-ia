@@ -100,10 +100,34 @@ function Concluir-Verificacao($res) {
     if (-not $codigo.Success) { throw 'Falta o código de autorização no endereço copiado.' }
     return Invoke-Leitor @{ Code = [Uri]::UnescapeDataString($codigo.Groups[1].Value) }
 }
-function Instante([string]$data) { return ([DateTimeOffset]::Parse($data, [Globalization.CultureInfo]::InvariantCulture)).ToUnixTimeSeconds() }
-function Propriedade($objeto, [string]$nome) {
-    $p = $objeto.PSObject.Properties[$nome]
-    if ($null -eq $p) { return $null } else { return $p.Value }
+# Corre `python -m zepp_life_excel_ia <comando> ...`, grava toda a saída no registo e devolve o código de saída.
+# Mostra as linhas de resumo e lança o erro (linha "ERRO: ...") se o comando falhar.
+function Invoke-Python([string[]]$argumentos, [string]$registo, [string]$falha) {
+    # O Windows PowerShell trata stderr nativo como erro: capturar tudo e decidir pelo código de saída.
+    # Também descodifica a saída do Python com a página de código da consola (cp850), o que estraga
+    # os acentos: usar UTF-8 durante a chamada e repor a codificação no fim.
+    $preferencia = $ErrorActionPreference
+    $codificacaoConsola = $null
+    try { $codificacaoConsola = [Console]::OutputEncoding; [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false) } catch { }
+    $env:PYTHONIOENCODING = 'utf-8'
+    Push-Location $raiz
+    try {
+        $ErrorActionPreference = 'Continue'
+        # "$_" converte cada linha de stderr (ErrorRecord) no texto original, sem o prefixo "python.exe :"
+        # nem quebras de linha à largura da consola.
+        & $Python -m zepp_life_excel_ia @argumentos 2>&1 | ForEach-Object { "$_" } |
+            Out-File -LiteralPath $registo -Append -Encoding utf8
+        $codigo = $LASTEXITCODE
+    } finally {
+        Pop-Location; $ErrorActionPreference = $preferencia
+        if ($null -ne $codificacaoConsola) { try { [Console]::OutputEncoding = $codificacaoConsola } catch { } }
+    }
+    $linhas = @(Get-Content -LiteralPath $registo)
+    $linhas | Where-Object { $_ -match '^(Excel real|Aviso|LEITURAS=)' } | ForEach-Object { Write-Host $_ }
+    if ($codigo -ne 0) {
+        $motivo = $linhas | Where-Object { $_ -match '^ERRO:' } | Select-Object -First 1
+        throw ($falha + $(if ($motivo) { ' ' + ($motivo -replace '^ERRO:\s*', '') } else { '' }) + ' Registo completo: ' + $registo)
+    }
 }
 
 try {
@@ -168,29 +192,11 @@ try {
         }
         $resposta = $resultado.Saida | ConvertFrom-Json
         $dados = @($resposta.weights)
-        if ($dados.Count -eq 0) { throw 'A exportação está vazia.' }
-        $novos = @{}
-        foreach ($linha in $dados) {
-            $data = Propriedade $linha 'Date'; $peso = Propriedade $linha 'Weight'
-            if ($null -eq $data -or $null -eq $peso -or [double]$peso -le 0) { throw 'A exportação contém pesagens inválidas.' }
-            $chave = Instante ([string]$data)
-            if ($novos.ContainsKey($chave)) { throw 'A exportação contém pesagens duplicadas no mesmo instante.' }
-            $novos[$chave] = $true
-        }
-        # Uma exportação completa tem de manter todas as pesagens anteriores (comparação por instante UTC).
-        if (Test-Path -LiteralPath $exportJson) {
-            # No PowerShell 5.1, ConvertFrom-Json devolve a matriz como um único objeto: enumerar explicitamente.
-            $antigos = @((Get-Content -LiteralPath $exportJson -Raw -Encoding UTF8 | ConvertFrom-Json) | ForEach-Object { $_ })
-            $perdidas = @($antigos | Where-Object { $null -ne (Propriedade $_ 'Date') -and -not $novos.ContainsKey((Instante ([string]$_.Date))) })
-            if ($perdidas.Count -gt 0) {
-                $exemplos = ($perdidas | Select-Object -First 5 | ForEach-Object { $_.Date }) -join ', '
-                if (-not $PermitirRemocoes) {
-                    throw "A nova exportação perdeu $($perdidas.Count) pesagem(ns) anterior(es) ($exemplos). Atualização interrompida. Se as apagou de propósito na Zepp Life, execute o atualizador com -PermitirRemocoes."
-                }
-                Write-Host "Aviso: $($perdidas.Count) pesagem(ns) removida(s) na Zepp foram aceites (-PermitirRemocoes)." -ForegroundColor Yellow
-            }
-        }
         [IO.File]::WriteAllText($novoJson, (ConvertTo-Json -InputObject $dados -Depth 10), [Text.UTF8Encoding]::new($false))
+        # Vazia, inválida, com duplicados ou com pesagens anteriores em falta (por instante UTC) -> recusada.
+        $validar = @('validar-exportacao', '--nova', $novoJson, '--anterior', $exportJson)
+        if ($PermitirRemocoes) { $validar += '--permitir-remocoes' }
+        Invoke-Python $validar (Join-Path $stage 'validacao.log') 'Exportação recusada:'
         $dados | Export-Csv -LiteralPath $novoCsv -NoTypeInformation -Encoding UTF8 -Delimiter ';'
         Guardar-Privado (ConvertTo-SecureString -String $resposta.token -AsPlainText -Force) $sessaoPath
         if ($null -ne $credencial) {
@@ -205,30 +211,13 @@ try {
     }
 
     Write-Host 'A gerar o Excel e o JSON e a preservar as medidas manuais...' -ForegroundColor Cyan
-    $argumentos = @('-m', 'zepp_transformacao.gerar', '--origem', $novoJson, '--existente', $livroPath,
-        '--excel', $novoLivro, '--json', $novoIa, '--config', $Config)
+    $argumentos = @('gerar', '--origem', $novoJson, '--existente', $livroPath, '--excel', $novoLivro,
+        '--json', $novoIa, '--config', $Config)
     if ($SemExcelReal) { $argumentos += '--sem-excel-real' }
     if ($Hoje) { $argumentos += @('--hoje', $Hoje) }
-    # O Windows PowerShell trata stderr nativo como erro: capturar tudo e decidir pelo código de saída.
-    $preferencia = $ErrorActionPreference
-    $env:PYTHONIOENCODING = 'utf-8'
-    # O PowerShell 5.1 descodifica a saída do Python com a página de código da consola (cp850),
-    # o que estraga os acentos; usar UTF-8 durante a chamada e repor a codificação no fim.
-    $codificacaoConsola = $null
-    try { $codificacaoConsola = [Console]::OutputEncoding; [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false) } catch { }
-    Push-Location $raiz
-    try {
-        $ErrorActionPreference = 'Continue'
-        & $Python @argumentos *> $logPath
-        $codigoGerador = $LASTEXITCODE
-    } finally {
-        Pop-Location; $ErrorActionPreference = $preferencia
-        if ($null -ne $codificacaoConsola) { try { [Console]::OutputEncoding = $codificacaoConsola } catch { } }
-    }
-    Get-Content -LiteralPath $logPath | Where-Object { $_ -match '^(Excel real|Aviso|LEITURAS=)' } | ForEach-Object { Write-Host $_ }
-    if ($codigoGerador -ne 0 -or -not (Test-Path -LiteralPath $novoLivro) -or -not (Test-Path -LiteralPath $novoIa)) {
-        $motivo = (Get-Content -LiteralPath $logPath | Where-Object { $_ -match '^ERRO:' } | Select-Object -First 1)
-        throw ('Falha ao gerar o Excel/JSON. ' + $(if ($motivo) { $motivo + ' ' } else { '' }) + 'Registo completo: ' + $logPath)
+    Invoke-Python $argumentos $logPath 'Falha ao gerar o Excel/JSON.'
+    if (-not (Test-Path -LiteralPath $novoLivro) -or -not (Test-Path -LiteralPath $novoIa)) {
+        throw "Falha ao gerar o Excel/JSON. Registo completo: $logPath"
     }
     $ia = Get-Content -LiteralPath $novoIa -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($ia.metadados.sha256_excel -ne (Get-FileHash -LiteralPath $novoLivro -Algorithm SHA256).Hash.ToLowerInvariant()) { throw 'O Excel e o JSON não correspondem (hash diferente).' }

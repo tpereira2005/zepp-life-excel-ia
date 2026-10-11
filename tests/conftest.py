@@ -1,12 +1,7 @@
-import sys
-from pathlib import Path
-
 import pytest
 
-RAIZ = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(RAIZ))
-
-from zepp_transformacao import config as configuracao, sintetico  # noqa: E402
+from zepp_life_excel_ia import config as configuracao
+from zepp_life_excel_ia import sintetico
 
 
 @pytest.fixture
