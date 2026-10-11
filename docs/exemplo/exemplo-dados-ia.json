@@ -1,14 +1,14 @@
 {
   "versao_esquema": "2.0.0",
   "metadados": {
-    "gerado_em_utc": "2026-10-11T11:16:20Z",
+    "gerado_em_utc": "2026-10-11T11:43:20Z",
     "gerador": "zepp-life-transformacao 2.0.0",
     "fuso_horario": "Europe/Lisbon",
     "inicio_transformacao": "2026-01-04",
     "ultima_medicao_corporal_local": "2026-06-02T07:02:00",
     "ultima_medicao_corporal_utc": "2026-06-02T06:02:00Z",
     "ficheiro_excel": "exemplo-transformacao.xlsx",
-    "sha256_excel": "891d444935abfe60d14ff26c66e535167728135017d699353f24c5dc80923e7f",
+    "sha256_excel": "935e70c89d50e024fec2296921e22bb48a153ca48ea6624bcfb11e764f2c1139",
     "origem": "Exportação Zepp Life e campos manuais guardados no Excel",
     "privacidade": "Dados pessoais corporais. Sem credenciais, tokens, email, identificadores de conta ou do dispositivo."
   },

@@ -87,19 +87,21 @@ def eixo_legivel(valores, amplitude_minima: float) -> tuple[float, float, float]
 
 # ---------- estilos ----------
 
-def _titulo(ws, texto: str, ultima_coluna: int, subtitulo: str | None = None) -> None:
+def _titulo(ws, texto: str, ultima_coluna: int, subtitulo: str | None = None, coluna: str = "A") -> None:
+    """coluna = onde começam título e subtítulo ("B" quando a coluna A está fixa, para a linha
+    de fixação do Excel não atravessar o texto)."""
     ws.sheet_view.showGridLines = False
     fim = get_column_letter(ultima_coluna)
-    ws.merge_cells(f"A1:{fim}1")
-    ws["A1"] = texto
-    ws["A1"].font = Font(name=FONTE, bold=True, size=16, color=COR["titulo"])
-    ws["A1"].alignment = Alignment(vertical="center")
+    ws.merge_cells(f"{coluna}1:{fim}1")
+    ws[f"{coluna}1"] = texto
+    ws[f"{coluna}1"].font = Font(name=FONTE, bold=True, size=16, color=COR["titulo"])
+    ws[f"{coluna}1"].alignment = Alignment(vertical="center")
     ws.row_dimensions[1].height = 32
     if subtitulo:
-        ws.merge_cells(f"A2:{fim}2")
-        ws["A2"] = subtitulo
-        ws["A2"].font = Font(name=FONTE, size=9, italic=True, color=COR["suave"])
-        ws["A2"].alignment = Alignment(vertical="center", wrap_text=True)
+        ws.merge_cells(f"{coluna}2:{fim}2")
+        ws[f"{coluna}2"] = subtitulo
+        ws[f"{coluna}2"].font = Font(name=FONTE, size=9, italic=True, color=COR["suave"])
+        ws[f"{coluna}2"].alignment = Alignment(vertical="center", wrap_text=True)
     ws.row_dimensions[2].height = 20
 
 
@@ -297,7 +299,7 @@ def construir(caminho: Path, cfg: Config, selecao: Selecao, semanas: list[Semana
     _corpo_texto(corpo, 4, ultima, len(CORPO_COLUNAS))
     _tabela(corpo, "tblCorpo", f"A3:Q{ultima}")
     corpo.column_dimensions["Q"].hidden = True
-    corpo.freeze_panes = "B4"
+    corpo.freeze_panes = "A4"
 
     # --- Medidas manuais ---
     m_ultima = len(semanas) + 3
@@ -347,7 +349,7 @@ def construir(caminho: Path, cfg: Config, selecao: Selecao, semanas: list[Semana
     dv.add(f"B4:B{m_ultima}")
     _tabela(manual, "tblMedidasManuais", f"A3:G{m_ultima}")
     _larguras(manual, [24, 16, 13, 16, 13, 15, 62])
-    manual.freeze_panes = "B4"
+    manual.freeze_panes = "A4"
 
     # --- Resumos ---
     def resumo(ws, nome_tabela, primeira_col, periodos, extra_cab, extra_formulas, titulo, subtitulo, nota):
@@ -357,7 +359,7 @@ def construir(caminho: Path, cfg: Config, selecao: Selecao, semanas: list[Semana
         grupos = {c: COR["azul_claro"] for c in cab[6:10]}
         grupos.update({c: COR["verde_claro"] for c in cab[10:10 + len(METRICAS_RESUMO) - 2]})
         grupos.update({c: COR["laranja_claro"] for c in extra_cab})
-        _titulo(ws, titulo, len(cab), subtitulo)
+        _titulo(ws, titulo, len(cab), subtitulo, coluna="B")
         _cabecalho(ws, 3, cab, grupos)
         ult = len(periodos) + 3
         colunas_metricas = ["G", "I"] + [get_column_letter(11 + i) for i in range(len(METRICAS_RESUMO) - 2)]
@@ -396,7 +398,7 @@ def construir(caminho: Path, cfg: Config, selecao: Selecao, semanas: list[Semana
         _tabela(ws, nome_tabela, f"A3:{get_column_letter(len(cab))}{ult}")
         _larguras(ws, [24 if primeira_col == "Semana" else 16, 11, 11, 10, 11, 10] + [13.5] * (len(cab) - 6))
         ws.freeze_panes = "B4"
-        _nota(ws, f"A{ult + 2}", f"{get_column_letter(min(len(cab), 14))}{ult + 2}", nota)
+        _nota(ws, f"B{ult + 2}", f"{get_column_letter(min(len(cab), 15))}{ult + 2}", nota)
 
     def manual_semana(col_manual):
         return lambda r: (f"=IFERROR(IF(INDEX('{FOLHA_MANUAL}'!${col_manual}$4:${col_manual}${m_ultima},"
@@ -476,15 +478,16 @@ def construir(caminho: Path, cfg: Config, selecao: Selecao, semanas: list[Semana
                     c.fill = fundo
                     c.border = Border(left=borda if col == 1 + 4 * j else None, right=borda if col == 3 + 4 * j else None,
                                       top=borda if r == linha else None, bottom=borda if r == linha + 4 else None)
-            painel[f"{c1}{linha}"].font = Font(name=FONTE, bold=True, size=10, color=COR["suave"])
-            painel[f"{c1}{linha + 1}"].font = Font(name=FONTE, bold=True, size=20, color=COR["texto"])
+            painel[f"{c1}{linha}"].font = Font(name=FONTE, bold=True, size=11, color=COR["suave"])
+            painel[f"{c1}{linha + 1}"].font = Font(name=FONTE, bold=True, size=24, color=COR["texto"])
             painel[f"{c1}{linha + 1}"].number_format = formato
-            painel[f"{c1}{linha + 4}"].font = Font(name=FONTE, size=8, italic=True, color=COR["suave"])
+            painel[f"{c1}{linha + 4}"].font = Font(name=FONTE, size=9, italic=True, color=COR["suave"])
             for r in (linha, linha + 1, linha + 4):
                 painel[f"{c1}{r}"].alignment = Alignment(horizontal="center", vertical="center")
-    _larguras(painel, [12, 12, 12, 2] * 3 + [12, 12, 12])
+    # Pensado para um monitor largo (~1900 px) a 100 %: as 15 colunas ocupam a largura da janela.
+    _larguras(painel, [16, 16, 16, 3] * 3 + [16, 16, 16])
     for r in range(3, 22):
-        painel.row_dimensions[r].height = 15 if r not in (3, 9, 15, 21) else 8
+        painel.row_dimensions[r].height = 17 if r not in (3, 9, 15, 21) else 8
 
     pesos = [l["Weight"] for l in leituras]
     graficos = [

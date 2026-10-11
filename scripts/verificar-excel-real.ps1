@@ -30,6 +30,9 @@ try {
     $excel.DisplayAlerts = $false
     $excel.ScreenUpdating = $false
     Repetir { $script:wb = $excel.Workbooks.Open($copia, 0, $true) }
+    # Com outro Excel aberto, Open pode devolver null apesar de abrir o livro: obtê-lo da coleção.
+    if ($null -eq $wb) { Repetir { $script:wb = $excel.Workbooks.Item([IO.Path]::GetFileName($copia)) } }
+    if ($null -eq $wb) { throw 'O Excel não abriu o livro.' }
     Repetir { $excel.CalculateFull() }
     Repetir { [void]$excel.Ready }
     $resultado = [ordered]@{ versao_excel = [string]$excel.Version; folhas = [ordered]@{}; erros = @(); graficos = @() }
