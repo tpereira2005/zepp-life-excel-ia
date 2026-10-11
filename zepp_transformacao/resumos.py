@@ -71,7 +71,7 @@ def variacoes_cintura(semanas: list[Semana]) -> dict[date, float | None]:
 
 
 def semanais(leituras: list[Leitura], semanas: list[Semana], cfg: Config) -> list[dict]:
-    ultimo_dia = leituras[-1].local.date()
+    ultimo_dia = max(l.local for l in leituras).date()
     variacao = variacoes_cintura(semanas)
     periodos = []
     for s in semanas:
@@ -92,7 +92,7 @@ def meses_entre(primeiro: date, ultimo: date) -> list[tuple[date, date]]:
 
 
 def mensais(leituras: list[Leitura], semanas: list[Semana], cfg: Config, ate: date) -> list[dict]:
-    ultimo_dia = leituras[-1].local.date()
+    ultimo_dia = max(l.local for l in leituras).date()
     periodos = []
     for inicio, fim in meses_entre(cfg.inicio, max(ate, ultimo_dia)):
         p = _periodo(inicio, fim, leituras, cfg, ultimo_dia)
@@ -116,7 +116,9 @@ class Indicador:
 
 
 def indicadores(leituras: list[Leitura], semanas: list[Semana]) -> dict:
-    primeira, ultima = leituras[0].local, leituras[-1].local
+    # Janelas pela hora local, como no Excel (MIN/MAX da coluna Data/hora); a "última leitura"
+    # é a de maior instante UTC (leituras[-1]), que pode não ter a maior hora local na mudança de hora.
+    primeira, ultima = min(l.local for l in leituras), max(l.local for l in leituras)
     inicio = [l for l in leituras if l.local < primeira + JANELA]
     atual = [l for l in leituras if l.local > ultima - JANELA]
     base = [l for l in leituras if ultima - 4 * JANELA < l.local <= ultima - 3 * JANELA]

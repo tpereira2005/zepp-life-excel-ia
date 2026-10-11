@@ -135,3 +135,36 @@ def test_validado_no_excel_real(projeto, tmp_path):
         [resumos.variacoes_cintura(semanas)[s.inicio] for s in semanas], [s.estado for s in semanas])
     assert diferencas == []
     assert len(list((tmp_path / "graficos").glob("*.png"))) == 5
+
+
+def test_ultima_pesagem_na_mudanca_de_hora(projeto):
+    # Duas pesagens às 01:30 em Lisboa (UTC+1 e depois UTC+0): a última é a de maior instante UTC.
+    from datetime import timezone
+    exportacao = json.loads(projeto["origem"].read_text(encoding="utf-8"))
+    exportacao += [sintetico.registo(datetime(2026, 10, 25, 0, 30, tzinfo=timezone.utc), 80, 20, 58),
+                   sintetico.registo(datetime(2026, 10, 25, 1, 30, tzinfo=timezone.utc), 79, 20, 58)]
+    projeto["origem"].write_text(json.dumps(exportacao), encoding="utf-8")
+    livro, dados, _ = correr(projeto, hoje="2026-10-26", excel_real=True)   # compara com o Excel real, se existir
+    assert dados["medicoes_corporais"][-1]["peso_kg"] == 79
+    assert dados["indicadores"]["peso_kg"]["ultima_leitura"] == 79
+    assert dados["metadados"]["ultima_medicao_corporal_utc"] == "2026-10-25T01:30:00Z"
+    formula = load_workbook(livro)["Painel"]["B5"].value
+    assert "$R$" in formula and "MATCH(MAX(" in formula      # procura pelo instante UTC, não pela hora local
+
+
+def test_gera_sem_nenhuma_data_manual(projeto):
+    livro, _, _ = correr(projeto, nome="v1")
+    wb = load_workbook(livro)
+    ws = wb["Medidas Manuais"]
+    for linha in range(4, ws.max_row + 1):
+        for coluna in "BCEG":
+            ws[f"{coluna}{linha}"] = None
+    wb.save(livro)
+    _, dados, _ = correr(projeto, existente=livro, nome="v2", excel_real=True)
+    assert all(m["data_medicao"] is None and m["estado"] == "por_preencher" for m in dados["medidas_manuais"])
+    assert dados["indicadores"]["cintura_cm"] is None and dados["indicadores"]["pescoco_cm"] is None
+
+
+def test_comparacao_acusa_folhas_em_falta():
+    diferencas = verificacao.comparar({"folhas": {}, "erros": []}, [], [], [], [], {}, [], [])
+    assert diferencas and "Folhas não lidas" in diferencas[0]

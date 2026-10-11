@@ -34,7 +34,7 @@ def executar(args) -> dict:
         csv = medidas.ler_csv(cfg.csv_medidas_iniciais)
     elif not existentes and cfg.csv_medidas_iniciais:
         print(f"Aviso: CSV inicial não encontrado ({cfg.csv_medidas_iniciais}); medidas manuais começam vazias.")
-    ultima_data = max(leituras[-1].local.date(), hoje)
+    ultima_data = max(max(l.local for l in leituras).date(), hoje)
     semanas = medidas.combinar(existentes, csv, cfg.inicio, ultima_data)
 
     semanais = resumos.semanais(leituras, semanas, cfg)

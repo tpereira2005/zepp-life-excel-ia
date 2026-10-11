@@ -32,6 +32,7 @@ Definido em `config.json` e mostrado no Excel e no JSON. A hora do relógio **n�
 | Média móvel de 7 dias | Média das leituras em ]t − 7 dias, t]. |
 | Desde o início (Painel) | Média dos últimos 7 dias − média dos primeiros 7 dias (reduz o ruído diário de uma leitura isolada). |
 | Ritmo recente | (Média dos últimos 7 dias − média da janela de há 3 semanas) / 3, em unidade por semana. |
+| Última leitura | A de maior instante UTC (coluna oculta *Instante UTC*), não a de maior hora local: na mudança de hora de outubro duas pesagens podem ter a mesma hora local. |
 | Massa gorda | Peso × gordura / 100. |
 | Massa proteica | Derivada pelo leitor: peso × proteína / 100 (não vem da aplicação). |
 

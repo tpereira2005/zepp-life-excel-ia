@@ -5,6 +5,7 @@
 ├── config.example.json          → copiar para config.json (privado)
 ├── scripts/
 │   ├── atualizar-zepp.ps1        orquestração: bloqueio, autenticação, validação, substituição, histórico
+│   ├── excel-com.ps1             apoio COM comum: filtro de mensagens (Excel ocupado), esperas, abertura do livro
 │   ├── verificar-excel-real.ps1  abre uma cópia no Microsoft Excel (COM), recalcula e devolve valores
 │   ├── capturar-folhas.ps1       imagens PNG de folhas (revisão de design / README)
 │   └── gerar_demo.py             exemplo fictício em docs/exemplo

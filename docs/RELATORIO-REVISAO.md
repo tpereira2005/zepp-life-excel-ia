@@ -30,6 +30,14 @@ Plano em 6 fases, aprovado na íntegra: (0) cópias e base de controlo, (1) corr
 4. **Dados reais** com `RECALCULAR-SEM-DESCARREGAR` (sem contactar a Xiaomi): todas as leituras e todos os valores das métricas idênticos à referência; todas as semanas manuais (data, cintura, pescoço, observações) idênticas; todos os resumos semanais e mensais iguais à referência a 1e-3, exceto a correção do 0,0 acima; JSON válido; hash correto; verificado no Excel real.
 5. **Revisão visual** no Excel real (capturas das folhas e gráficos).
 
+## Correções após revisão externa (2.0.2)
+
+| Ponto | Causa | Correção | Teste |
+|---|---|---|---|
+| Última pesagem errada na mudança de hora | `INDEX(MATCH(MAX(Data/hora)))` pela hora local devolvia a primeira de duas pesagens à mesma hora local | Coluna oculta *Instante UTC*; Painel usa `MATCH(MAX(Instante UTC))`; janelas Python usam min/max da hora local, como o Excel | `test_ultima_pesagem_na_mudanca_de_hora` (validado no Excel real; falha com o código anterior) |
+| Erro com todas as datas manuais vazias | `min()` sobre lista vazia na escala do eixo de datas | Usar o início das semanas como alternativa | `test_gera_sem_nenhuma_data_manual` (validado no Excel real; falha com o código anterior) |
+| Verificação no Excel intermitente | Chamadas COM rejeitadas/leituras parciais com o Excel ocupado | `scripts/excel-com.ps1` (IOleMessageFilter, esperas por `Ready`), folhas esperadas obrigatórias, até 3 tentativas em Python | `test_comparacao_acusa_folhas_em_falta`; 12 verificações seguidas com dados reais, 12 sem falhas |
+
 ## Não feito / limitações
 
 - O leitor Go não foi recompilado localmente (Go não instalado); o executável anterior continua em uso. A compilação e os testes Go correm no CI.

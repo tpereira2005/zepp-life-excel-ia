@@ -18,14 +18,14 @@ function Repetir([scriptblock]$acao) {
 [void](New-Item -ItemType Directory -Force -Path $Pasta)
 $copia = Join-Path ([IO.Path]::GetTempPath()) ('zepp-captura-' + [guid]::NewGuid().ToString('N') + '.xlsx')
 Copy-Item -LiteralPath $Livro -Destination $copia
+. (Join-Path $PSScriptRoot 'excel-com.ps1')
+Iniciar-FiltroExcel
 $excel = New-Object -ComObject Excel.Application
 try {
     $excel.Visible = $false; $excel.DisplayAlerts = $false
-    $wb = $excel.Workbooks.Open($copia, 0, $true)
-    # Com outro Excel aberto, Open pode devolver null apesar de abrir o livro: obtê-lo da coleção.
-    if ($null -eq $wb) { Repetir { $script:wb = $excel.Workbooks.Item([IO.Path]::GetFileName($copia)) } }
-    if ($null -eq $wb) { throw 'O Excel não abriu o livro.' }
-    Repetir { $excel.CalculateFull() }
+    $wb = Abrir-LivroExcel $excel $copia
+    $excel.CalculateFull()
+    Esperar-Excel $excel
     foreach ($item in $Intervalos) {
         $folha, $endereco = $item -split '!', 2
         $ws = $wb.Worksheets.Item($folha)
@@ -47,5 +47,6 @@ try {
 } finally {
     $excel.Quit(); [void][Runtime.InteropServices.Marshal]::ReleaseComObject($excel)
     [GC]::Collect(); [GC]::WaitForPendingFinalizers()
+    Parar-FiltroExcel
     if (Test-Path -LiteralPath $copia) { [IO.File]::Delete($copia) }
 }

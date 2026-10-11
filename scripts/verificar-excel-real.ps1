@@ -2,50 +2,50 @@
   Abre uma CÓPIA do livro no Microsoft Excel instalado (só leitura), recalcula tudo e grava
   os valores calculados em JSON. Opcionalmente exporta os gráficos do Painel em PNG.
   Não altera o livro original. Código de saída 3 = Excel não disponível.
+  -FolhasEsperadas 'A|B|C': a leitura falha (em vez de devolver dados parciais) se faltar alguma destas folhas.
 #>
 param(
     [Parameter(Mandatory)][string]$Livro,
     [Parameter(Mandatory)][string]$Saida,
-    [string]$Graficos
+    [string]$Graficos,
+    [string]$FolhasEsperadas = ''
 )
 $ErrorActionPreference = 'Stop'
-# O Excel rejeita chamadas COM enquanto calcula (RPC_E_CALL_REJECTED); tentar de novo.
-# Os blocos atribuem a variáveis $script: porque o pipeline enumeraria Ranges e matrizes.
-function Repetir([scriptblock]$acao) {
-    for ($tentativa = 1; ; $tentativa++) {
-        try { & $acao; return }
-        catch {
-            if ($tentativa -ge 120 -or $_.Exception.Message -notmatch '0x8001010A|0x80010001|RPC_E') { throw }
-            Start-Sleep -Milliseconds 500
-        }
-    }
-}
+$esperadas = @($FolhasEsperadas -split '\|' | Where-Object { $_ })
+. (Join-Path $PSScriptRoot 'excel-com.ps1')
+
 $copia = Join-Path ([IO.Path]::GetTempPath()) ('zepp-verificacao-' + [guid]::NewGuid().ToString('N') + '.xlsx')
 Copy-Item -LiteralPath $Livro -Destination $copia
 $excel = $null
+Iniciar-FiltroExcel
 try {
     try { $excel = New-Object -ComObject Excel.Application }
     catch { Write-Host 'Excel nao disponivel para verificacao.'; exit 3 }
     $excel.Visible = $false
     $excel.DisplayAlerts = $false
     $excel.ScreenUpdating = $false
-    Repetir { $script:wb = $excel.Workbooks.Open($copia, 0, $true) }
-    # Com outro Excel aberto, Open pode devolver null apesar de abrir o livro: obtê-lo da coleção.
-    if ($null -eq $wb) { Repetir { $script:wb = $excel.Workbooks.Item([IO.Path]::GetFileName($copia)) } }
-    if ($null -eq $wb) { throw 'O Excel não abriu o livro.' }
-    Repetir { $excel.CalculateFull() }
-    Repetir { [void]$excel.Ready }
+    $wb = Abrir-LivroExcel $excel $copia
+    $excel.CalculateFull()
+    Esperar-Excel $excel
+
+    # Confirmar que o livro está completo antes de ler (folhas esperadas presentes).
+    $limite = (Get-Date).AddSeconds(60)
+    do {
+        $nomes = @(foreach ($folha in $wb.Worksheets) { $folha.Name })
+        $faltam = @($esperadas | Where-Object { $nomes -notcontains $_ })
+        if ($faltam.Count -eq 0 -and $nomes.Count -gt 0) { break }
+        if ((Get-Date) -gt $limite) { throw ('Folhas em falta no Excel: ' + ($faltam -join ', ')) }
+        Start-Sleep -Milliseconds 500
+    } while ($true)
+
     $resultado = [ordered]@{ versao_excel = [string]$excel.Version; folhas = [ordered]@{}; erros = @(); graficos = @() }
-    # Percorrer por índice com novas tentativas: o enumerador COM pode terminar em silêncio se o Excel estiver ocupado.
-    Repetir { $script:totalFolhas = $wb.Worksheets.Count }
-    for ($indice = 1; $indice -le $totalFolhas; $indice++) {
-        Repetir { $script:ws = $wb.Worksheets.Item($indice) }
-        Repetir { $script:usado = $ws.UsedRange }
-        # Atribuição direta: devolver a matriz 2D por pipeline achata-a.
-        Repetir { $script:valores = $usado.Value2 }
+    foreach ($nome in $nomes) {
+        $ws = $wb.Worksheets.Item($nome)
+        $usado = $ws.UsedRange
+        $valores = $usado.Value2      # atribuição direta: o pipeline achataria a matriz 2D
         $linhas = New-Object System.Collections.Generic.List[object]
         $primeiraLinha = $usado.Row; $primeiraColuna = $usado.Column
-        # Linhas e colunas vazias antes da área usada para manter endereços Excel.
+        # Linhas vazias antes da área usada, para manter os endereços Excel.
         for ($r = 1; $r -lt $primeiraLinha; $r++) { $linhas.Add(@()) }
         if ($valores -is [Array]) {
             $nl = $valores.GetLength(0); $nc = $valores.GetLength(1)
@@ -54,6 +54,7 @@ try {
                 for ($c = 1; $c -le $nc; $c++) {
                     $v = $valores[$r, $c]
                     if ($v -is [int]) {
+                        # Value2 devolve os erros de fórmula como inteiros (CVErr).
                         $endereco = $ws.Cells.Item($r + $primeiraLinha - 1, $c + $primeiraColuna - 1).Address($false, $false)
                         $resultado.erros += ($ws.Name + '!' + $endereco + ' ' + $ws.Range($endereco).Text)
                         $v = '#ERRO'
@@ -63,9 +64,10 @@ try {
                 $linhas.Add($linha)
             }
         }
-        $resultado.folhas[$ws.Name] = $linhas
+        $resultado.folhas[$nome] = $linhas
     }
-    if ($resultado.folhas.Count -ne $totalFolhas) { throw "Leitura incompleta: $($resultado.folhas.Count) de $totalFolhas folhas." }
+    if ($resultado.folhas.Count -ne $nomes.Count) { throw "Leitura incompleta: $($resultado.folhas.Count) de $($nomes.Count) folhas." }
+
     if ($Graficos) {
         [void](New-Item -ItemType Directory -Force -Path $Graficos)
         $painel = $wb.Worksheets.Item('Painel')
@@ -75,12 +77,12 @@ try {
             $i++
             $objeto.Activate()
             $destino = Join-Path $Graficos ('grafico-' + $i + '.png')
-            Repetir { [void]$objeto.Chart.Export($destino, 'PNG') }
+            [void]$objeto.Chart.Export($destino, 'PNG')
             $resultado.graficos += [ordered]@{ ficheiro = $destino; titulo = $objeto.Chart.ChartTitle.Text;
                 series = $objeto.Chart.SeriesCollection().Count; vazios = $objeto.Chart.DisplayBlanksAs }
         }
     }
-    Repetir { $wb.Close($false) }
+    $wb.Close($false)
     $json = $resultado | ConvertTo-Json -Depth 6 -Compress
     [IO.File]::WriteAllText($Saida, $json, [Text.UTF8Encoding]::new($false))
 } finally {
@@ -89,5 +91,6 @@ try {
         [void][Runtime.InteropServices.Marshal]::ReleaseComObject($excel)
         [GC]::Collect(); [GC]::WaitForPendingFinalizers()
     }
+    Parar-FiltroExcel
     if (Test-Path -LiteralPath $copia) { [IO.File]::Delete($copia) }
 }

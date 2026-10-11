@@ -19,21 +19,40 @@ class ExcelIndisponivel(RuntimeError):
     pass
 
 
-def calcular_no_excel(livro: Path, graficos: Path | None = None, timeout: int = 300) -> dict:
+FOLHAS_OBRIGATORIAS = ["Painel", "Resumo Mensal", "Resumo Semanal", "Medidas Manuais", "Medições Corporais"]
+
+
+def calcular_no_excel(livro: Path, graficos: Path | None = None, timeout: int = 300, tentativas: int = 3) -> dict:
+    """Valores calculados pelo Excel. Falhas intermitentes da automação COM (Excel ocupado, leitura
+    incompleta) são repetidas até `tentativas` vezes; diferenças de valores nunca são repetidas."""
     if os.name != "nt" or not SCRIPT.exists():
         raise ExcelIndisponivel("Verificação no Excel só existe em Windows.")
-    with tempfile.TemporaryDirectory() as pasta:
-        saida = Path(pasta) / "valores.json"
-        comando = ["powershell.exe", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(SCRIPT),
-                   "-Livro", str(livro), "-Saida", str(saida)]
-        if graficos:
-            comando += ["-Graficos", str(graficos)]
-        processo = subprocess.run(comando, capture_output=True, text=True, timeout=timeout)
-        if processo.returncode == 3:
-            raise ExcelIndisponivel("Microsoft Excel não está instalado.")
-        if processo.returncode != 0 or not saida.exists():
-            raise RuntimeError("A verificação no Excel falhou: " + (processo.stderr or processo.stdout).strip()[-800:])
-        return json.loads(saida.read_text(encoding="utf-8-sig"))
+    erro = None
+    for tentativa in range(1, tentativas + 1):
+        with tempfile.TemporaryDirectory() as pasta:
+            saida = Path(pasta) / "valores.json"
+            comando = ["powershell.exe", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(SCRIPT),
+                       "-Livro", str(livro), "-Saida", str(saida), "-FolhasEsperadas", "|".join(FOLHAS_OBRIGATORIAS)]
+            if graficos:
+                comando += ["-Graficos", str(graficos)]
+            try:
+                processo = subprocess.run(comando, capture_output=True, text=True, timeout=timeout)
+            except subprocess.TimeoutExpired:
+                erro = RuntimeError(f"A verificação no Excel excedeu {timeout} s.")
+                continue
+            if processo.returncode == 3:
+                raise ExcelIndisponivel("Microsoft Excel não está instalado.")
+            if processo.returncode == 0 and saida.exists():
+                valores = json.loads(saida.read_text(encoding="utf-8-sig"))
+                em_falta = [f for f in FOLHAS_OBRIGATORIAS if f not in valores.get("folhas", {})]
+                if not em_falta:
+                    return valores
+                erro = RuntimeError("O Excel não devolveu as folhas: " + ", ".join(em_falta))
+            else:
+                erro = RuntimeError("A verificação no Excel falhou: " + (processo.stderr or processo.stdout).strip()[-800:])
+        if tentativa < tentativas:
+            print(f"Aviso: verificação no Excel interrompida ({erro}); nova tentativa {tentativa + 1} de {tentativas}.")
+    raise erro
 
 
 def _celula(folha: list, endereco: str):
@@ -62,7 +81,7 @@ def comparar(valores: dict, semanais: list[dict], mensais: list[dict], moveis: l
     """Devolve a lista de diferenças (vazia = Excel e Python concordam)."""
     diferencas = [f"Erro de fórmula: {e}" for e in valores.get("erros", [])]
     folhas = valores["folhas"]
-    em_falta = {"Painel", "Resumo Semanal", "Resumo Mensal", "Medidas Manuais", "Medições Corporais"} - set(folhas)
+    em_falta = set(FOLHAS_OBRIGATORIAS) - set(folhas)
     if em_falta:
         return diferencas + ["Folhas não lidas no Excel: " + ", ".join(sorted(em_falta))]
 

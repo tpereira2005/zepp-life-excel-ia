@@ -50,6 +50,9 @@ CORPO_COLUNAS = [
     ("Idade corporal (anos)", 12, "0"), ("Pontuação corporal", 12, "0"),
     ("Peso, média 7 dias (kg)", 14, "0.00"), ("Gordura, média 7 dias (%)", 14, "0.00"),
     ("Músculo, média 7 dias (kg)", 14, "0.00"), ("Dia", 11, "dd/mm/yyyy"),
+    # Instante UTC (oculto): identifica a última pesagem mesmo quando duas têm a mesma hora local
+    # (mudança de hora de outubro) e mesmo que a tabela seja reordenada no Excel.
+    ("Instante UTC", 19, "dd/mm/yyyy hh:mm:ss"),
 ]
 CAMPO_CORPO = {"Peso (kg)": "Weight", "IMC": "BMI", "Gordura (%)": "BodyFat", "Água corporal (%)": "BodyWater",
                "Massa óssea (kg)": "BoneMass", "Massa muscular (kg)": "MuscleMass", "Proteína (%)": "ProteinRatio",
@@ -239,7 +242,7 @@ def grafico_manual(ws_manual, semanas: list[Semana], coluna: str, campo: str, ti
                          spPr=GraphicalProperties(ln=LineProperties(solidFill=COR["linha"])))
     ch.x_axis.baseTimeUnit = "days"
     ch.x_axis.majorTimeUnit = "days"
-    datas = [s.data for s in semanas if s.data is not None]
+    datas = [s.data for s in semanas if s.data is not None] or [s.inicio for s in semanas]
     _escala_datas(ch.x_axis, _serie(min(datas)), _serie(max(datas)))
     ch.y_axis.crossAx = 500
     _escala_y(ch, [getattr(s, campo) for s in semanas], amplitude, "0.0")
@@ -280,7 +283,7 @@ def construir(caminho: Path, cfg: Config, selecao: Selecao, semanas: list[Semana
             f"{n} leituras aceites · {atualizado} · fórmulas: massa gorda e médias móveis de 7 dias")
     _cabecalho(corpo, 3, [c for c, _, _ in CORPO_COLUNAS])
     rng = lambda col: f"'{FOLHA_CORPO}'!${COLUNA_CORPO[col]}$4:${COLUNA_CORPO[col]}${ultima}"
-    A, Q = rng("Data/hora"), rng("Dia")
+    A, Q, U = rng("Data/hora"), rng("Dia"), rng("Instante UTC")
     for i, l in enumerate(leituras):
         r = i + 4
         corpo.cell(r, 1, l.local)
@@ -292,13 +295,15 @@ def construir(caminho: Path, cfg: Config, selecao: Selecao, semanas: list[Semana
             corpo[f"{COLUNA_CORPO[nome]}{r}"] = (
                 f'=AVERAGEIFS(${origem}$4:${origem}${ultima},$A$4:$A${ultima},">"&$A{r}-7,$A$4:$A${ultima},"<="&$A{r})')
         corpo[f"Q{r}"] = f"=INT(A{r})"
+        corpo[f"R{r}"] = l.instante_utc.replace(tzinfo=None)
     for i, (_, largura, formato) in enumerate(CORPO_COLUNAS, start=1):
         corpo.column_dimensions[get_column_letter(i)].width = largura
         for r in range(4, ultima + 1):
             corpo.cell(r, i).number_format = formato
     _corpo_texto(corpo, 4, ultima, len(CORPO_COLUNAS))
-    _tabela(corpo, "tblCorpo", f"A3:Q{ultima}")
+    _tabela(corpo, "tblCorpo", f"A3:R{ultima}")
     corpo.column_dimensions["Q"].hidden = True
+    corpo.column_dimensions["R"].hidden = True
     corpo.freeze_panes = "A4"
 
     # --- Medidas manuais ---
@@ -427,14 +432,15 @@ def construir(caminho: Path, cfg: Config, selecao: Selecao, semanas: list[Semana
     # Coluna A e coluna Q são margens vazias; o conteúdo vai de B a P.
     _titulo(painel, "", 16, coluna="B")
     painel["B1"] = (f'="Transformação corporal  ·  {inicio_txt} a "&{_data_excel(f"MAX({A})")}')
-    painel["B2"] = (f'="Última leitura: "&{_data_excel(f"MAX({A})")}&" às "&RIGHT("0"&HOUR(MAX({A})),2)&":"&RIGHT("0"&MINUTE(MAX({A})),2)'
+    hora_ultima = f"INDEX({A},MATCH(MAX({U}),{U},0))"
+    painel["B2"] = (f'="Última leitura: "&{_data_excel(hora_ultima)}&" às "&RIGHT("0"&HOUR({hora_ultima}),2)&":"&RIGHT("0"&MINUTE({hora_ultima}),2)'
                     f'&"  ·  "&COUNT({A})&" leituras aceites  ·  {atualizado}"')
     painel["B2"].font = Font(name=FONTE, size=9, italic=True, color=COR["suave"])
     B, D, G = rng("Peso (kg)"), rng("Gordura (%)"), rng("Massa muscular (kg)")
     ultimas7 = lambda v: f'AVERAGEIFS({v},{A},">"&MAX({A})-7)'
     primeiras7 = lambda v: f'AVERAGEIFS({v},{A},"<"&MIN({A})+7)'
     base4s = lambda v: f'AVERAGEIFS({v},{A},">"&MAX({A})-28,{A},"<="&MAX({A})-21)'
-    ultima_leitura = lambda v: f"INDEX({v},MATCH(MAX({A}),{A},0))"
+    ultima_leitura = lambda v: f"INDEX({v},MATCH(MAX({U}),{U},0))"
     MC, MB, ME = (f"'{FOLHA_MANUAL}'!${c}$4:${c}${m_ultima}" for c in "CBE")
 
     def manual_ultima(v):
@@ -503,7 +509,7 @@ def construir(caminho: Path, cfg: Config, selecao: Selecao, semanas: list[Semana
     ]
     for ch, (c0, r0, c1, r1) in graficos:
         if isinstance(ch, ScatterChart):
-            _escala_datas(ch.x_axis, _serie(leituras[0].local), _serie(leituras[-1].local))
+            _escala_datas(ch.x_axis, _serie(min(l.local for l in leituras)), _serie(max(l.local for l in leituras)))
         # Âncora a duas células: o gráfico ocupa exatamente as colunas/linhas indicadas.
         painel.add_chart(ch, TwoCellAnchor(editAs="oneCell", _from=AnchorMarker(col=c0, row=r0), to=AnchorMarker(col=c1, row=r1)))
     _nota(painel, "B99", "P99", "Gráficos de peso, gordura e músculo: pontos = leituras; linha = média móvel de 7 dias. "
