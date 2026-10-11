@@ -57,7 +57,7 @@ jobs:
       - run: go test ./pkg/zepp ./internal
       - name: Compilar zepp-reader.exe
         run: GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ../bin/zepp-reader.exe ./cmd/zepp-reader
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: zepp-reader-windows-amd64
           path: bin/zepp-reader.exe
