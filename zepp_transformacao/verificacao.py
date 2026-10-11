@@ -62,6 +62,9 @@ def comparar(valores: dict, semanais: list[dict], mensais: list[dict], moveis: l
     """Devolve a lista de diferenças (vazia = Excel e Python concordam)."""
     diferencas = [f"Erro de fórmula: {e}" for e in valores.get("erros", [])]
     folhas = valores["folhas"]
+    em_falta = {"Painel", "Resumo Semanal", "Resumo Mensal", "Medidas Manuais", "Medições Corporais"} - set(folhas)
+    if em_falta:
+        return diferencas + ["Folhas não lidas no Excel: " + ", ".join(sorted(em_falta))]
 
     def verificar(folha, endereco, esperado, descricao):
         obtido = _celula(folhas[folha], endereco)

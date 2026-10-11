@@ -33,7 +33,10 @@ try {
     Repetir { $excel.CalculateFull() }
     Repetir { [void]$excel.Ready }
     $resultado = [ordered]@{ versao_excel = [string]$excel.Version; folhas = [ordered]@{}; erros = @(); graficos = @() }
-    foreach ($ws in $wb.Worksheets) {
+    # Percorrer por índice com novas tentativas: o enumerador COM pode terminar em silêncio se o Excel estiver ocupado.
+    Repetir { $script:totalFolhas = $wb.Worksheets.Count }
+    for ($indice = 1; $indice -le $totalFolhas; $indice++) {
+        Repetir { $script:ws = $wb.Worksheets.Item($indice) }
         Repetir { $script:usado = $ws.UsedRange }
         # Atribuição direta: devolver a matriz 2D por pipeline achata-a.
         Repetir { $script:valores = $usado.Value2 }
@@ -59,6 +62,7 @@ try {
         }
         $resultado.folhas[$ws.Name] = $linhas
     }
+    if ($resultado.folhas.Count -ne $totalFolhas) { throw "Leitura incompleta: $($resultado.folhas.Count) de $totalFolhas folhas." }
     if ($Graficos) {
         [void](New-Item -ItemType Directory -Force -Path $Graficos)
         $painel = $wb.Worksheets.Item('Painel')
