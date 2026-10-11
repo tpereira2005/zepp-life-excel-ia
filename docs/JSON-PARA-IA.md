@@ -28,6 +28,26 @@ Ficheiro: `Excel e JSON/dados-zepp-life-ia.json` · Esquema: [`schema/dados-zepp
 - Valores derivados arredondados a 3 casas; valores medidos como exportados.
 - Não somar `medicoes_corporais` com resumos: os resumos derivam das medições.
 
+## Versões
+
+- `versao_esquema` é a versão do **formato** do JSON (atualmente 2.0.0). Só muda quando o formato muda; a 2.1.0 do programa, por exemplo, reorganizou o código sem alterar o JSON.
+- `metadados.gerador` indica a versão do **programa** que gerou o ficheiro (ex.: `zepp-life-excel-ia 2.1.0`).
+- Mudanças compatíveis (chaves novas) sobem o número intermédio; mudanças incompatíveis sobem o número principal e ficam descritas abaixo e no [CHANGELOG](../CHANGELOG.md).
+
+## Validar um ficheiro
+
+Com as ferramentas de desenvolvimento instaladas (`requirements-dev.txt`):
+
+```bat
+.venv\Scripts\python -c "import json, jsonschema; jsonschema.validate(json.load(open('Excel e JSON/dados-zepp-life-ia.json', encoding='utf-8')), json.load(open('schema/dados-zepp-life-ia.schema.json', encoding='utf-8'))); print('válido')"
+```
+
+Os testes automáticos validam contra o esquema o JSON gerado com dados fictícios em cada execução.
+
+## Onde é gerado
+
+`zepp_life_excel_ia/ia_json.py`. As chaves e unidades das métricas vêm do registo único em `metricas.py`; os valores vêm dos cálculos em `resumos.py` (os mesmos que o Excel real confirma).
+
 ## Alterações face à versão 1.0.0
 
 | 1.0.0 | 2.0.0 |

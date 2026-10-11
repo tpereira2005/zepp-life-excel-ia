@@ -1,6 +1,8 @@
-# Relatório da revisão 2.0.0 (para revisão por outro agente)
+# Relatório das revisões 2.0.0 a 2.1.0 (para revisão por outro agente)
 
-Este relatório descreve o que mudou, porquê, e como foi verificado. Os valores pessoais da verificação com dados reais estão num relatório privado fora do repositório (`privado/notas/VERIFICACAO-DADOS-REAIS.md`).
+Este relatório descreve o que mudou, porquê, e como foi verificado, por ordem cronológica. Os valores pessoais da verificação com dados reais estão num relatório privado fora do repositório (`privado/notas/VERIFICACAO-DADOS-REAIS.md`).
+
+> **Nomes atuais.** As secções 2.0.x referem a estrutura dessa altura: o pacote `zepp_transformacao/` é hoje `zepp_life_excel_ia/`, `excel.py` é o pacote `excel/` (um módulo por folha), `leituras.METRICAS` passou para `metricas.py` e a validação da exportação passou do PowerShell para `exportacao.py`. Ver a secção 2.1.0 e [ARQUITETURA.md](ARQUITETURA.md).
 
 ## Âmbito aprovado
 
@@ -44,14 +46,16 @@ Plano em 6 fases, aprovado na íntegra: (0) cópias e base de controlo, (1) corr
 - A descarga real (`ATUALIZAR-EXCEL.cmd`) não foi executada nesta revisão para não acionar autenticação Xiaomi sem o utilizador presente.
 - `VisceralFat`/`BasalMetabolism` continuam truncados para inteiro no leitor (documentado).
 
-## Comandos para reproduzir
+## Comandos para reproduzir (versão atual)
 
 ```bat
 INSTALAR.cmd
 .venv\Scripts\python -m pip install -r requirements-dev.txt
+.venv\Scripts\python -m ruff check .
 .venv\Scripts\python -m pytest -rs
 powershell -NoProfile -ExecutionPolicy Bypass -File tests\atualizador.Tests.ps1
 .venv\Scripts\python scripts\gerar_demo.py
+.venv\Scripts\python scripts\comparar_saidas.py antes.xlsx antes.json depois.xlsx depois.json
 ```
 
 ## Reorganização do código (2.1.0)
@@ -69,7 +73,7 @@ Objetivo: facilitar a manutenção sem mudar o resultado.
 | Conversões de datas do Excel repetidas | `datas.py` | |
 | Sem verificador de código | ruff no CI; `pyproject.toml` | |
 
-**Como foi verificado:** antes de alterar, geraram-se referências (Excel + JSON) com o código anterior para três casos — dados reais, dados fictícios e um caso com duas pesagens à mesma hora local na mudança de hora. Depois de cada passo, um comparador verificou cada célula (valor, fórmula, número, letra, preenchimento, bordas, alinhamento), células unidas, larguras, alturas, painéis fixos, tabelas, validações, formatação condicional, o XML dos gráficos e dos desenhos, e todo o JSON (exceto data de geração, versão e hash): **0 diferenças** nos três casos. A nova lista de células esperadas cobre as mesmas células que a verificação anterior (ex.: 227 × 4 em Medições, 34 × 19 no Resumo Semanal) e foi confirmada no Excel real. Testes: 42 pytest, testes do atualizador, ruff sem avisos.
+**Como foi verificado:** antes de alterar, geraram-se referências (Excel + JSON) com o código anterior para três casos — dados reais, dados fictícios e um caso com duas pesagens à mesma hora local na mudança de hora. Depois de cada passo, um comparador verificou cada célula (valor, fórmula, número, letra, preenchimento, bordas, alinhamento), células unidas, larguras, alturas, painéis fixos, tabelas, validações, formatação condicional, o XML dos gráficos e dos desenhos, e todo o JSON (exceto data de geração, versão e hash): **0 diferenças** nos três casos. A nova lista de células esperadas cobre as mesmas células que a verificação anterior (ex.: 227 × 4 em Medições, 34 × 19 no Resumo Semanal) e foi confirmada no Excel real. Testes: 42 pytest, testes do atualizador, ruff sem avisos. O comparador usado ficou no repositório: `scripts/comparar_saidas.py`.
 
 Nota encontrada durante o trabalho: no Windows PowerShell 5.1, redirecionar o stderr do Python com `*>>` embrulhava cada linha num registo de erro ("python.exe : ERRO: …") partido pela largura da consola, pelo que a mensagem de erro não era encontrada. O atualizador passou a gravar cada linha como texto simples.
 

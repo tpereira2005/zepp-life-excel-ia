@@ -13,6 +13,8 @@ Reorganização interna do código. O Excel (células, fórmulas, estilos, gráf
 - Validação da exportação passou do PowerShell para Python (`exportacao.py`, com testes); o atualizador usa uma única função para chamar o Python e passa a mostrar o motivo exato das recusas.
 - `datas.py`: conversão de datas do Excel num só sítio (estava repetida em 4).
 - `pyproject.toml` (substitui `pytest.ini`; versão num só sítio) e ruff no CI.
+- Documentação revista: README (pastas, validação, desenvolvimento, índice), instalação (atualizar, problemas comuns), utilização (opções do atualizador, registos), regras (validação, limites, onde está no código), JSON (versões, validação) e arquitetura (manutenção); `docs/exemplo/README.md`.
+- `scripts/comparar_saidas.py`: compara dois pares Excel+JSON célula a célula, para confirmar alterações estruturais.
 
 ## 2.0.3 — 2026-10-11
 
