@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Testes Python (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pytest -rs
+
+  atualizador:
+    name: Testes do atualizador (Windows PowerShell)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Criar .venv
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .venv\Scripts\python -m pip install -r requirements.txt
+      - name: Testes
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\atualizador.Tests.ps1
+
+  leitor:
+    name: Leitor Zepp (Go)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: leitor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: leitor/go.mod
+          cache-dependency-path: leitor/go.sum
+      - run: go vet ./cmd/zepp-reader ./pkg/zepp ./pkg/xiaomi ./pkg/core
+      - run: go test ./pkg/zepp ./internal
+      - name: Compilar zepp-reader.exe
+        run: GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ../bin/zepp-reader.exe ./cmd/zepp-reader
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zepp-reader-windows-amd64
+          path: bin/zepp-reader.exe

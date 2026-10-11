@@ -1,0 +1,20 @@
+# ── Dados pessoais: NUNCA publicar ─────────────────────────────
+config.json
+inputs/
+outputs/
+arquivo/
+docs/privado/
+*.clixml
+
+# ── Binários e ambiente ───────────────────────────────────────
+bin/
+*.exe
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# ── Temporários ───────────────────────────────────────────────
+*.tmp
+~$*.xlsx
+.atualizacao.lock

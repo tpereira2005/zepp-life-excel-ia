@@ -1,0 +1,8 @@
+{
+  "inicio_transformacao": "2026-01-04",
+  "fuso_horario": "Europe/Lisbon",
+  "perfil_titular_id": -1,
+  "altura_perfil_sem_id_cm": null,
+  "protocolo_pesagem": "Ao acordar, depois de urinar, antes de comer ou beber.",
+  "csv_medidas_iniciais": "inputs/medicoes-cintura-pescoco.csv"
+}

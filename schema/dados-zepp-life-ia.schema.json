@@ -1,0 +1,701 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/tpereira2005/zepp-life-transformacao/schema/dados-zepp-life-ia.schema.json",
+  "title": "Dados de transformação corporal para análise por IA",
+  "description": "Fotografia de uma atualização: medições da balança aceites, medidas manuais e agregações derivadas.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "versao_esquema",
+    "metadados",
+    "convencoes",
+    "protocolo_pesagem",
+    "criterios_selecao",
+    "dicionario_metricas",
+    "indicadores",
+    "medicoes_corporais",
+    "pesagens_excluidas",
+    "medidas_manuais",
+    "resumos_semanais",
+    "resumos_mensais"
+  ],
+  "$defs": {
+    "data": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "data_ou_null": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/data"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "hora_local": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}$"
+    },
+    "hora_utc": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "numero": {
+      "type": "number"
+    },
+    "numero_ou_null": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "inteiro_ou_null": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "lista_numeros_ou_null": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "indicador": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "media_7d_inicial",
+        "media_7d_atual",
+        "variacao_desde_inicio",
+        "ultima_leitura",
+        "ritmo_por_semana_ultimas_4_semanas"
+      ],
+      "properties": {
+        "media_7d_inicial": {
+          "$ref": "#/$defs/numero"
+        },
+        "media_7d_atual": {
+          "$ref": "#/$defs/numero"
+        },
+        "variacao_desde_inicio": {
+          "$ref": "#/$defs/numero"
+        },
+        "ultima_leitura": {
+          "$ref": "#/$defs/numero"
+        },
+        "ritmo_por_semana_ultimas_4_semanas": {
+          "$ref": "#/$defs/numero_ou_null"
+        }
+      }
+    },
+    "indicador_manual": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "primeira",
+            "data_primeira",
+            "ultima",
+            "data_ultima",
+            "variacao_desde_inicio",
+            "medicoes"
+          ],
+          "properties": {
+            "primeira": {
+              "$ref": "#/$defs/numero"
+            },
+            "data_primeira": {
+              "$ref": "#/$defs/data"
+            },
+            "ultima": {
+              "$ref": "#/$defs/numero"
+            },
+            "data_ultima": {
+              "$ref": "#/$defs/data"
+            },
+            "variacao_desde_inicio": {
+              "$ref": "#/$defs/numero"
+            },
+            "medicoes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "versao_esquema": {
+      "const": "2.0.0"
+    },
+    "metadados": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gerado_em_utc",
+        "gerador",
+        "fuso_horario",
+        "inicio_transformacao",
+        "ultima_medicao_corporal_local",
+        "ultima_medicao_corporal_utc",
+        "ficheiro_excel",
+        "sha256_excel",
+        "origem",
+        "privacidade"
+      ],
+      "properties": {
+        "gerado_em_utc": {
+          "$ref": "#/$defs/hora_utc"
+        },
+        "gerador": {
+          "type": "string"
+        },
+        "fuso_horario": {
+          "type": "string"
+        },
+        "inicio_transformacao": {
+          "$ref": "#/$defs/data"
+        },
+        "ultima_medicao_corporal_local": {
+          "$ref": "#/$defs/hora_local"
+        },
+        "ultima_medicao_corporal_utc": {
+          "$ref": "#/$defs/hora_utc"
+        },
+        "ficheiro_excel": {
+          "type": "string"
+        },
+        "sha256_excel": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "origem": {
+          "type": "string"
+        },
+        "privacidade": {
+          "type": "string"
+        }
+      }
+    },
+    "convencoes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "protocolo_pesagem": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "criterios_selecao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_local_minima_inclusiva",
+        "perfil",
+        "completude",
+        "plausibilidade",
+        "contagens",
+        "exclusoes"
+      ],
+      "properties": {
+        "data_local_minima_inclusiva": {
+          "$ref": "#/$defs/data"
+        },
+        "perfil": {
+          "type": "string"
+        },
+        "completude": {
+          "type": "string"
+        },
+        "plausibilidade": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "contagens": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "origem",
+            "anteriores_ao_inicio",
+            "incompletas",
+            "implausiveis",
+            "outro_perfil",
+            "aceites"
+          ],
+          "properties": {
+            "origem": {
+              "type": "integer"
+            },
+            "anteriores_ao_inicio": {
+              "type": "integer"
+            },
+            "incompletas": {
+              "type": "integer"
+            },
+            "implausiveis": {
+              "type": "integer"
+            },
+            "outro_perfil": {
+              "type": "integer"
+            },
+            "aceites": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "exclusoes": {
+          "type": "string"
+        }
+      }
+    },
+    "dicionario_metricas": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "unidade",
+          "significado",
+          "origem"
+        ],
+        "properties": {
+          "unidade": {
+            "type": "string"
+          },
+          "significado": {
+            "type": "string"
+          },
+          "origem": {
+            "enum": [
+              "balança",
+              "aplicação",
+              "derivada",
+              "manual"
+            ]
+          }
+        }
+      }
+    },
+    "indicadores": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "descricao",
+        "peso_kg",
+        "gordura_corporal_percentagem",
+        "massa_muscular_kg",
+        "cintura_cm",
+        "pescoco_cm"
+      ],
+      "properties": {
+        "descricao": {
+          "type": "string"
+        },
+        "peso_kg": {
+          "$ref": "#/$defs/indicador"
+        },
+        "gordura_corporal_percentagem": {
+          "$ref": "#/$defs/indicador"
+        },
+        "massa_muscular_kg": {
+          "$ref": "#/$defs/indicador"
+        },
+        "cintura_cm": {
+          "$ref": "#/$defs/indicador_manual"
+        },
+        "pescoco_cm": {
+          "$ref": "#/$defs/indicador_manual"
+        }
+      }
+    },
+    "medicoes_corporais": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id_medicao",
+          "data_hora_local",
+          "data_hora_utc",
+          "desvio_utc",
+          "peso_kg",
+          "imc",
+          "gordura_corporal_percentagem",
+          "massa_muscular_kg",
+          "massa_gorda_kg",
+          "peso_media_7d_kg"
+        ],
+        "properties": {
+          "id_medicao": {
+            "type": "integer"
+          },
+          "data_hora_local": {
+            "$ref": "#/$defs/hora_local"
+          },
+          "data_hora_utc": {
+            "$ref": "#/$defs/hora_utc"
+          },
+          "desvio_utc": {
+            "type": "string",
+            "pattern": "^[+-]\\d{2}:\\d{2}$"
+          },
+          "peso_kg": {
+            "$ref": "#/$defs/numero"
+          },
+          "altura_cm": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "imc": {
+            "$ref": "#/$defs/numero"
+          },
+          "gordura_corporal_percentagem": {
+            "$ref": "#/$defs/numero"
+          },
+          "agua_corporal_percentagem": {
+            "$ref": "#/$defs/numero"
+          },
+          "massa_ossea_kg": {
+            "$ref": "#/$defs/numero"
+          },
+          "massa_muscular_kg": {
+            "$ref": "#/$defs/numero"
+          },
+          "proteina_percentagem": {
+            "$ref": "#/$defs/numero"
+          },
+          "massa_proteica_kg": {
+            "$ref": "#/$defs/numero"
+          },
+          "gordura_visceral_indice": {
+            "$ref": "#/$defs/numero"
+          },
+          "metabolismo_basal_kcal_dia": {
+            "$ref": "#/$defs/numero"
+          },
+          "idade_corporal_anos": {
+            "$ref": "#/$defs/numero"
+          },
+          "pontuacao_corporal": {
+            "$ref": "#/$defs/numero"
+          },
+          "classificacao_fisica_codigo": {
+            "$ref": "#/$defs/inteiro_ou_null"
+          },
+          "peso_padrao_kg": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "impedancia_ohm": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "massa_gorda_kg": {
+            "$ref": "#/$defs/numero"
+          },
+          "peso_media_7d_kg": {
+            "$ref": "#/$defs/numero"
+          },
+          "gordura_media_7d_percentagem": {
+            "$ref": "#/$defs/numero"
+          },
+          "musculo_media_7d_kg": {
+            "$ref": "#/$defs/numero"
+          }
+        }
+      }
+    },
+    "pesagens_excluidas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id_medicao",
+          "data_hora_local",
+          "peso_kg",
+          "motivo"
+        ],
+        "properties": {
+          "id_medicao": {
+            "type": "integer"
+          },
+          "data_hora_local": {
+            "$ref": "#/$defs/hora_local"
+          },
+          "peso_kg": {
+            "$ref": "#/$defs/numero"
+          },
+          "motivo": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "medidas_manuais": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "semana_inicio",
+          "semana_fim",
+          "data_medicao",
+          "cintura_cm",
+          "pescoco_cm",
+          "variacao_cintura_cm",
+          "cintura_leituras_cm",
+          "pescoco_leituras_cm",
+          "estado",
+          "observacoes"
+        ],
+        "properties": {
+          "semana_inicio": {
+            "$ref": "#/$defs/data"
+          },
+          "semana_fim": {
+            "$ref": "#/$defs/data"
+          },
+          "data_medicao": {
+            "$ref": "#/$defs/data_ou_null"
+          },
+          "cintura_cm": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "pescoco_cm": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "variacao_cintura_cm": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "cintura_leituras_cm": {
+            "$ref": "#/$defs/lista_numeros_ou_null"
+          },
+          "pescoco_leituras_cm": {
+            "$ref": "#/$defs/lista_numeros_ou_null"
+          },
+          "estado": {
+            "enum": [
+              "completa",
+              "incompleta",
+              "sem_medicao",
+              "por_preencher"
+            ]
+          },
+          "observacoes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "resumos_semanais": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rotulo",
+          "inicio",
+          "fim",
+          "leituras",
+          "dias_com_medicao",
+          "parcial",
+          "peso_medio_kg",
+          "cintura_cm",
+          "variacao_cintura_cm",
+          "pescoco_cm"
+        ],
+        "properties": {
+          "rotulo": {
+            "type": "string"
+          },
+          "inicio": {
+            "$ref": "#/$defs/data"
+          },
+          "fim": {
+            "$ref": "#/$defs/data"
+          },
+          "leituras": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "dias_com_medicao": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "parcial": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "peso_medio_kg": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "variacao_peso_kg": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "gordura_media_percentagem": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "variacao_gordura_pp": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "musculo_medio_kg": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "massa_gorda_media_kg": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "agua_media_percentagem": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "proteina_media_percentagem": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "massa_ossea_media_kg": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "imc_medio": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "gordura_visceral_media": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "idade_corporal_media": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "pontuacao_corporal_media": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "cintura_cm": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "variacao_cintura_cm": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "pescoco_cm": {
+            "$ref": "#/$defs/numero_ou_null"
+          }
+        }
+      }
+    },
+    "resumos_mensais": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rotulo",
+          "inicio",
+          "fim",
+          "leituras",
+          "dias_com_medicao",
+          "parcial",
+          "peso_medio_kg",
+          "cintura_media_cm",
+          "pescoco_medio_cm"
+        ],
+        "properties": {
+          "rotulo": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}$"
+          },
+          "inicio": {
+            "$ref": "#/$defs/data"
+          },
+          "fim": {
+            "$ref": "#/$defs/data"
+          },
+          "leituras": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "dias_com_medicao": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "parcial": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "peso_medio_kg": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "variacao_peso_kg": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "gordura_media_percentagem": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "variacao_gordura_pp": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "musculo_medio_kg": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "massa_gorda_media_kg": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "agua_media_percentagem": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "proteina_media_percentagem": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "massa_ossea_media_kg": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "imc_medio": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "gordura_visceral_media": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "idade_corporal_media": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "pontuacao_corporal_media": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "cintura_media_cm": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "pescoco_medio_cm": {
+            "$ref": "#/$defs/numero_ou_null"
+          }
+        }
+      }
+    }
+  }
+}
