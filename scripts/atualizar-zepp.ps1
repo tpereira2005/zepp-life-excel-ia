@@ -208,15 +208,22 @@ try {
     # O Windows PowerShell trata stderr nativo como erro: capturar tudo e decidir pelo código de saída.
     $preferencia = $ErrorActionPreference
     $env:PYTHONIOENCODING = 'utf-8'
+    # O PowerShell 5.1 descodifica a saída do Python com a página de código da consola (cp850),
+    # o que estraga os acentos; usar UTF-8 durante a chamada e repor a codificação no fim.
+    $codificacaoConsola = $null
+    try { $codificacaoConsola = [Console]::OutputEncoding; [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false) } catch { }
     Push-Location $raiz
     try {
         $ErrorActionPreference = 'Continue'
         & $Python @argumentos *> $logPath
         $codigoGerador = $LASTEXITCODE
-    } finally { Pop-Location; $ErrorActionPreference = $preferencia }
-    Get-Content -LiteralPath $logPath -Encoding UTF8 | Where-Object { $_ -match '^(Excel real|Aviso|LEITURAS=)' } | ForEach-Object { Write-Host $_ }
+    } finally {
+        Pop-Location; $ErrorActionPreference = $preferencia
+        if ($null -ne $codificacaoConsola) { try { [Console]::OutputEncoding = $codificacaoConsola } catch { } }
+    }
+    Get-Content -LiteralPath $logPath | Where-Object { $_ -match '^(Excel real|Aviso|LEITURAS=)' } | ForEach-Object { Write-Host $_ }
     if ($codigoGerador -ne 0 -or -not (Test-Path -LiteralPath $novoLivro) -or -not (Test-Path -LiteralPath $novoIa)) {
-        $motivo = (Get-Content -LiteralPath $logPath -Encoding UTF8 | Where-Object { $_ -match '^ERRO:' } | Select-Object -First 1)
+        $motivo = (Get-Content -LiteralPath $logPath | Where-Object { $_ -match '^ERRO:' } | Select-Object -First 1)
         throw ('Falha ao gerar o Excel/JSON. ' + $(if ($motivo) { $motivo + ' ' } else { '' }) + 'Registo completo: ' + $logPath)
     }
     $ia = Get-Content -LiteralPath $novoIa -Raw -Encoding UTF8 | ConvertFrom-Json
