@@ -1,6 +1,6 @@
 <div align="center">
 
-# Zepp Life · Transformação corporal
+# Zepp Life · Excel e IA
 
 **Da balança Xiaomi para um Excel claro e um JSON pronto para IA — com um duplo clique.**
 
@@ -28,7 +28,7 @@ Acompanha uma transformação corporal a partir das pesagens de uma **Xiaomi Mi 
 | 🧹 **Seleciona** | Só leituras completas do perfil titular, desde a data de início; exclusões ficam listadas com o motivo. |
 | 📊 **Excel nativo** | Painel com indicadores, gráficos com média móvel de 7 dias, resumos semanais e mensais, medidas manuais editáveis. |
 | 🤖 **JSON para IA** | Esquema estável e versionado ([`schema/`](schema/dados-zepp-life-ia.schema.json)), datas ISO com UTC, unidades, dicionário de métricas e convenções explícitas. |
-| 🛡️ **Seguro** | Prepara tudo numa pasta temporária, valida (inclusive no **Microsoft Excel real**) e só depois substitui; versões anteriores ficam em `historico/`. |
+| 🛡️ **Seguro** | Recusa descargas incompletas, prepara tudo numa pasta temporária, confirma cada valor no **Microsoft Excel real** e só depois substitui; as versões anteriores ficam em `privado\historico\`. |
 
 <table>
 <tr>
@@ -51,7 +51,7 @@ INSTALAR.cmd
 2. Coloque o leitor `zepp-reader.exe` em `bin\` — descarregue-o dos artefactos do [CI](https://github.com/tpereira2005/zepp-life-excel-ia/actions/workflows/ci.yml) ou compile-o (ver [instalação](docs/INSTALACAO.md)).
 3. Sincronize a balança na Zepp Life, feche o Excel e execute **`ATUALIZAR-EXCEL.cmd`**.
 
-O Excel e o JSON ficam na pasta **`Excel e JSON\`**. Para experimentar sem conta, abra o [exemplo fictício](docs/exemplo/).
+Para experimentar sem conta, abra o [exemplo fictício](docs/exemplo/) (Excel, JSON, exportação e CSV de medidas).
 
 ## Utilização diária
 
@@ -61,13 +61,27 @@ O Excel e o JSON ficam na pasta **`Excel e JSON\`**. Para experimentar sem conta
 | `RECALCULAR-SEM-DESCARREGAR.cmd` | Depois de editar medidas manuais no Excel: regenera sem contactar a Xiaomi. |
 | `ESQUECER-CONTA.cmd` | Apaga a conta e a sessão guardadas neste computador (por exemplo, após mudar a palavra-passe). |
 
-Mais detalhes em [docs/UTILIZACAO.md](docs/UTILIZACAO.md).
+Se apagou pesagens de propósito na Zepp Life, a proteção contra perdas interrompe a atualização; nesse caso use `scripts\atualizar-zepp.ps1 -PermitirRemocoes`. Mais detalhes em [docs/UTILIZACAO.md](docs/UTILIZACAO.md).
+
+### Onde ficam os ficheiros
+
+```
+zepp-life-excel-ia\
+├─ ATUALIZAR-EXCEL.cmd · RECALCULAR-SEM-DESCARREGAR.cmd · ESQUECER-CONTA.cmd · INSTALAR.cmd
+├─ Excel e JSON\          ← o que se abre: analise-historico-zepp-life.xlsx e dados-zepp-life-ia.json
+├─ privado\               entradas, última exportação, histórico, temporários, backups e notas
+├─ config.json            configuração pessoal (copiada de config.example.json)
+└─ bin\zepp-reader.exe    leitor da Zepp Life
+```
+
+`Excel e JSON\`, `privado\`, `config.json` e `bin\` são pessoais e nunca vão para o Git.
 
 ## Regras dos dados
 
 - **Leituras aceites:** perfil titular, data local ≥ início, composição corporal completa e valores plausíveis.
 - **Semanas** de domingo a sábado em `Europe/Lisbon`; **médias** por leitura; **dias com medição** mostram quantos dias contribuíram.
 - **Variações** entre períodos consecutivos; gordura em pontos percentuais; cintura face à medição anterior disponível.
+- **Última leitura** pelo instante UTC, para não haver ambiguidade na mudança de hora.
 - **Ausências são `null`**, nunca zero. Os tracejados dos gráficos são só visuais — nenhum valor é inventado.
 
 Tudo explicado em [docs/DADOS-E-REGRAS.md](docs/DADOS-E-REGRAS.md) e [docs/JSON-PARA-IA.md](docs/JSON-PARA-IA.md).
@@ -77,30 +91,66 @@ Tudo explicado em [docs/DADOS-E-REGRAS.md](docs/DADOS-E-REGRAS.md) e [docs/JSON-
 ```mermaid
 flowchart LR
     A[Zepp Life<br/>API] -->|zepp-reader.exe<br/>stdin/stdout| B[atualizar-zepp.ps1]
-    B -->|exportação JSON| C[zepp_life_excel_ia<br/>Python]
+    B -->|nova exportação| V[validar-exportacao<br/>duplicados, perdas]
+    V --> C[gerar<br/>zepp_life_excel_ia]
     D[(Excel atual<br/>medidas manuais)] --> C
     C --> E[Excel nativo<br/>openpyxl]
     C --> F[JSON para IA<br/>esquema 2.0.0]
-    E -->|verificação| G[Microsoft Excel<br/>COM]
-    B -->|validado| H[(Excel e JSON/<br/>privado/historico)]
+    E -->|células esperadas| G[Microsoft Excel<br/>COM]
+    B -->|tudo validado| H[(Excel e JSON/<br/>privado/historico)]
 ```
 
-Ver [docs/ARQUITETURA.md](docs/ARQUITETURA.md).
+Os cálculos são feitos uma única vez em Python. O Excel recebe fórmulas nativas (para refletir edições manuais) e cada folha regista o valor que o Python espera nas células com fórmulas; o Excel real confirma-os antes de qualquer ficheiro ser substituído. Ver [docs/ARQUITETURA.md](docs/ARQUITETURA.md).
 
 ## Privacidade
 
 Os dados corporais são pessoais. O repositório **não contém** dados reais: `config.json`, `Excel e JSON/` e `privado/` estão no `.gitignore`. Conta e sessão ficam fora do projeto, em `%LOCALAPPDATA%\ZeppLifeExcel`, cifradas com DPAPI e acessíveis apenas ao utilizador Windows. O JSON não inclui credenciais, tokens, email nem o identificador do dispositivo.
 
-## Testes
+## Desenvolvimento
+
+```
+zepp_life_excel_ia\
+├─ __main__.py      linha de comandos: gerar | validar-exportacao
+├─ gerar.py         gerar(): lê, calcula, escreve o Excel, verifica no Excel real, escreve o JSON
+├─ metricas.py      registo único das métricas (JSON, colunas do Excel, resumos, limites)
+├─ exportacao.py    validação de uma nova descarga
+├─ leituras.py      fuso horário, seleção e motivos de exclusão
+├─ medidas.py       medidas manuais (leitura pelo cabeçalho, CSV inicial, prioridades)
+├─ resumos.py       cálculos: períodos, médias móveis, indicadores (fonte única)
+├─ excel\           um módulo por folha + estilos e gráficos
+├─ verificacao.py   corre o Excel real e compara as células esperadas
+└─ ia_json.py       JSON para IA
+```
+
+```bat
+.venv\Scripts\python -m zepp_life_excel_ia gerar --origem exportacao.json --excel livro.xlsx --json dados.json [--existente atual.xlsx] [--sem-excel-real]
+.venv\Scripts\python -m zepp_life_excel_ia validar-exportacao --nova nova.json --anterior anterior.json
+```
+
+**Acrescentar uma métrica:** declare-a em `metricas.py` (chave JSON, unidade, coluna e formato no Excel, nome no resumo) e inclua-a em `COLUNAS_MEDICOES` e/ou `RESUMO`. O Excel, o JSON e a verificação passam a usá-la; atualize o [esquema JSON](schema/dados-zepp-life-ia.schema.json).
+
+### Testes
 
 ```bat
 .venv\Scripts\python -m pip install -r requirements-dev.txt
-.venv\Scripts\python -m pytest
 .venv\Scripts\python -m ruff check .
+.venv\Scripts\python -m pytest
 powershell -NoProfile -ExecutionPolicy Bypass -File tests\atualizador.Tests.ps1
 ```
 
-Os testes usam apenas dados fictícios. Com o Excel instalado, um dos testes abre o livro no Excel real e compara cada valor calculado com o Python.
+Os testes usam apenas dados fictícios. Com o Excel instalado, um dos testes abre o livro no Excel real e confirma todas as células esperadas; o atualizador é testado com um leitor simulado e pastas temporárias. O CI corre os testes Python em Windows e Linux, os do atualizador em Windows, o ruff, e compila o leitor Go.
+
+### Documentação
+
+| | |
+|---|---|
+| [INSTALACAO.md](docs/INSTALACAO.md) | Instalação, configuração, leitor e primeira autenticação |
+| [UTILIZACAO.md](docs/UTILIZACAO.md) | Atualizações, medidas manuais e folhas do Excel |
+| [DADOS-E-REGRAS.md](docs/DADOS-E-REGRAS.md) | Seleção das leituras, agregações e gráficos |
+| [JSON-PARA-IA.md](docs/JSON-PARA-IA.md) | Estrutura e convenções do JSON 2.0.0 |
+| [ARQUITETURA.md](docs/ARQUITETURA.md) | Módulos, fluxo da atualização e decisões |
+| [RELATORIO-REVISAO.md](docs/RELATORIO-REVISAO.md) | O que mudou nas revisões e como foi verificado |
+| [CHANGELOG.md](CHANGELOG.md) | Registo de versões |
 
 ## Créditos
 
