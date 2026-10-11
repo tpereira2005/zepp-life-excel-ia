@@ -424,11 +424,12 @@ def construir(caminho: Path, cfg: Config, selecao: Selecao, semanas: list[Semana
            nota_periodos + " Cintura e pescoço: média das medições manuais com data nesse mês.")
 
     # --- Painel ---
-    _titulo(painel, "", 15)
-    painel["A1"] = (f'="Transformação corporal  ·  {inicio_txt} a "&{_data_excel(f"MAX({A})")}')
-    painel["A2"] = (f'="Última leitura: "&{_data_excel(f"MAX({A})")}&" às "&RIGHT("0"&HOUR(MAX({A})),2)&":"&RIGHT("0"&MINUTE(MAX({A})),2)'
+    # Coluna A e coluna Q são margens vazias; o conteúdo vai de B a P.
+    _titulo(painel, "", 16, coluna="B")
+    painel["B1"] = (f'="Transformação corporal  ·  {inicio_txt} a "&{_data_excel(f"MAX({A})")}')
+    painel["B2"] = (f'="Última leitura: "&{_data_excel(f"MAX({A})")}&" às "&RIGHT("0"&HOUR(MAX({A})),2)&":"&RIGHT("0"&MINUTE(MAX({A})),2)'
                     f'&"  ·  "&COUNT({A})&" leituras aceites  ·  {atualizado}"')
-    painel["A2"].font = Font(name=FONTE, size=9, italic=True, color=COR["suave"])
+    painel["B2"].font = Font(name=FONTE, size=9, italic=True, color=COR["suave"])
     B, D, G = rng("Peso (kg)"), rng("Gordura (%)"), rng("Massa muscular (kg)")
     ultimas7 = lambda v: f'AVERAGEIFS({v},{A},">"&MAX({A})-7)'
     primeiras7 = lambda v: f'AVERAGEIFS({v},{A},"<"&MIN({A})+7)'
@@ -464,7 +465,7 @@ def construir(caminho: Path, cfg: Config, selecao: Selecao, semanas: list[Semana
     ]
     for linha, grupo in cartoes:
         for j, (rotulo, formula, formato, cor, nota) in enumerate(grupo):
-            c1, c2 = get_column_letter(1 + 4 * j), get_column_letter(3 + 4 * j)
+            c1, c2 = get_column_letter(2 + 4 * j), get_column_letter(4 + 4 * j)
             painel.merge_cells(f"{c1}{linha}:{c2}{linha}")
             painel.merge_cells(f"{c1}{linha + 1}:{c2}{linha + 3}")
             painel.merge_cells(f"{c1}{linha + 4}:{c2}{linha + 4}")
@@ -473,10 +474,10 @@ def construir(caminho: Path, cfg: Config, selecao: Selecao, semanas: list[Semana
             painel[f"{c1}{linha + 4}"] = f"={nota}"
             fundo = PatternFill("solid", fgColor=COR[cor])
             for r in range(linha, linha + 5):
-                for col in range(1 + 4 * j, 4 + 4 * j):
+                for col in range(2 + 4 * j, 5 + 4 * j):
                     c = painel.cell(r, col)
                     c.fill = fundo
-                    c.border = Border(left=borda if col == 1 + 4 * j else None, right=borda if col == 3 + 4 * j else None,
+                    c.border = Border(left=borda if col == 2 + 4 * j else None, right=borda if col == 4 + 4 * j else None,
                                       top=borda if r == linha else None, bottom=borda if r == linha + 4 else None)
             painel[f"{c1}{linha}"].font = Font(name=FONTE, bold=True, size=11, color=COR["suave"])
             painel[f"{c1}{linha + 1}"].font = Font(name=FONTE, bold=True, size=24, color=COR["texto"])
@@ -484,28 +485,28 @@ def construir(caminho: Path, cfg: Config, selecao: Selecao, semanas: list[Semana
             painel[f"{c1}{linha + 4}"].font = Font(name=FONTE, size=9, italic=True, color=COR["suave"])
             for r in (linha, linha + 1, linha + 4):
                 painel[f"{c1}{r}"].alignment = Alignment(horizontal="center", vertical="center")
-    # Pensado para um monitor largo (~1900 px) a 100 %: as 15 colunas ocupam a largura da janela.
-    _larguras(painel, [16, 16, 16, 3] * 3 + [16, 16, 16])
+    # Pensado para um monitor largo (~1900 px) a 100 %: margens A e Q com a largura dos espaços entre cartões.
+    _larguras(painel, [3] + [15.5, 15.5, 15.5, 3] * 3 + [15.5, 15.5, 15.5] + [3])
     for r in range(3, 22):
         painel.row_dimensions[r].height = 17 if r not in (3, 9, 15, 21) else 8
 
     pesos = [l["Weight"] for l in leituras]
     graficos = [
         (grafico_diario(corpo, ultima, "B", "N", "Peso (kg)", COR["azul"], pesos, [m["Weight"] for m in moveis],
-                        AMPLITUDE_MINIMA["peso"], "kg"), (0, 22, 15, 40)),
+                        AMPLITUDE_MINIMA["peso"], "kg"), (1, 22, 16, 40)),
         (grafico_diario(corpo, ultima, "D", "O", "Gordura corporal (%)", COR["laranja"],
-                        [l["BodyFat"] for l in leituras], [m["BodyFat"] for m in moveis], AMPLITUDE_MINIMA["gordura"], "%"), (0, 41, 15, 59)),
+                        [l["BodyFat"] for l in leituras], [m["BodyFat"] for m in moveis], AMPLITUDE_MINIMA["gordura"], "%"), (1, 41, 16, 59)),
         (grafico_diario(corpo, ultima, "G", "P", "Massa muscular (kg)", COR["verde"],
-                        [l["MuscleMass"] for l in leituras], [m["MuscleMass"] for m in moveis], AMPLITUDE_MINIMA["musculo"], "kg"), (0, 60, 15, 78)),
-        (grafico_manual(manual, semanas, "C", "cintura", "Cintura (cm)", COR["laranja"], AMPLITUDE_MINIMA["cintura"]), (0, 79, 7, 97)),
-        (grafico_manual(manual, semanas, "E", "pescoco", "Pescoço (cm)", COR["azul"], AMPLITUDE_MINIMA["pescoco"]), (8, 79, 15, 97)),
+                        [l["MuscleMass"] for l in leituras], [m["MuscleMass"] for m in moveis], AMPLITUDE_MINIMA["musculo"], "kg"), (1, 60, 16, 78)),
+        (grafico_manual(manual, semanas, "C", "cintura", "Cintura (cm)", COR["laranja"], AMPLITUDE_MINIMA["cintura"]), (1, 79, 8, 97)),
+        (grafico_manual(manual, semanas, "E", "pescoco", "Pescoço (cm)", COR["azul"], AMPLITUDE_MINIMA["pescoco"]), (9, 79, 16, 97)),
     ]
     for ch, (c0, r0, c1, r1) in graficos:
         if isinstance(ch, ScatterChart):
             _escala_datas(ch.x_axis, _serie(leituras[0].local), _serie(leituras[-1].local))
         # Âncora a duas células: o gráfico ocupa exatamente as colunas/linhas indicadas.
         painel.add_chart(ch, TwoCellAnchor(editAs="oneCell", _from=AnchorMarker(col=c0, row=r0), to=AnchorMarker(col=c1, row=r1)))
-    _nota(painel, "A99", "O99", "Gráficos de peso, gordura e músculo: pontos = leituras; linha = média móvel de 7 dias. "
+    _nota(painel, "B99", "P99", "Gráficos de peso, gordura e músculo: pontos = leituras; linha = média móvel de 7 dias. "
           "Cintura e pescoço: pontos = medições reais; tracejado = semanas sem medição (só visual, sem valores inventados). "
           "As escalas e os tracejados são recalculados em cada atualização.")
     painel.freeze_panes = "A3"

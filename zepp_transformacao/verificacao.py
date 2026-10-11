@@ -100,12 +100,12 @@ def comparar(valores: dict, semanais: list[dict], mensais: list[dict], moveis: l
             diferencas.append(f"Medidas Manuais!F{r}: Excel={obtido!r} Python={estado!r}")
     peso, gordura, musculo = (indicadores[k] for k in ("peso_kg", "gordura_corporal_percentagem", "massa_muscular_kg"))
     for endereco, esperado, descricao in (
-            ("A5", peso.ultima_leitura, "último peso"), ("E5", peso.atual_media_7d, "peso 7 dias"),
-            ("I5", peso.variacao, "peso desde o início"), ("M5", peso.ritmo_semanal_4s, "ritmo"),
-            ("A11", gordura.atual_media_7d, "gordura 7 dias"), ("E11", gordura.variacao, "gordura desde o início"),
-            ("I11", musculo.atual_media_7d, "músculo 7 dias"), ("M11", musculo.variacao, "músculo desde o início")):
+            ("B5", peso.ultima_leitura, "último peso"), ("F5", peso.atual_media_7d, "peso 7 dias"),
+            ("J5", peso.variacao, "peso desde o início"), ("N5", peso.ritmo_semanal_4s, "ritmo"),
+            ("B11", gordura.atual_media_7d, "gordura 7 dias"), ("F11", gordura.variacao, "gordura desde o início"),
+            ("J11", musculo.atual_media_7d, "músculo 7 dias"), ("N11", musculo.variacao, "músculo desde o início")):
         verificar("Painel", endereco, esperado, descricao)
-    for col_valor, col_var, nome in (("A", "E", "cintura_cm"), ("I", "M", "pescoco_cm")):
+    for col_valor, col_var, nome in (("B", "F", "cintura_cm"), ("J", "N", "pescoco_cm")):
         ind = indicadores[nome]
         verificar("Painel", f"{col_valor}17", ind["ultima"] if ind else None, f"última {nome}")
         verificar("Painel", f"{col_var}17", ind["variacao"] if ind and ind["medicoes"] > 1 else None, f"{nome} desde o início")

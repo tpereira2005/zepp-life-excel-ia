@@ -2,7 +2,7 @@
 
 ## 2.0.1 — 2026-10-11
 
-- Painel alargado para ocupar um monitor largo (~1900 px a 100 %), com valores maiores nos cartões.
+- Painel alargado para ocupar um monitor largo (~1900 px a 100 %), com valores maiores nos cartões e margens laterais iguais aos espaços entre cartões.
 - Linhas fixas: nas tabelas simples (Medidas Manuais, Medições Corporais, Critérios) só o cabeçalho fica fixo, sem linha vertical; nos resumos largos a coluna A continua fixa e o título, o subtítulo e a nota começam na coluna B, para a linha do Excel não os atravessar.
 - Acentos corretos na janela do atualizador.
 - Verificação/captura no Excel robustas quando já há outro Excel aberto.
