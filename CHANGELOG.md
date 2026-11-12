@@ -1,5 +1,42 @@
 # Registo de alterações
 
+## 2.2.0 — 2026-11-11
+
+Indicadores que mostram a fase atual (e não só a comparação com o início), JSON compacto para IA e mais proteção dos dados. Os valores que já existiam no Excel e no JSON não mudaram (confirmado valor a valor com dados reais, fictícios e mudança de hora), com uma exceção deliberada: o **ritmo recente**.
+
+**Indicadores e Excel**
+
+- **Mínimo do peso**: a média de 7 dias mais baixa (a contar do 7.º dia de leituras) e a sua data; novo cartão *Peso desde o mínimo*.
+- **Massa magra** (peso − massa gorda): coluna em Medições Corporais e nos resumos; cartões *Massa gorda/magra desde o início* e *desde o mínimo*, com a percentagem da variação do peso que foi gordura.
+- **Ritmo recente** passa a ser o declive da regressão linear das leituras dos últimos 28 dias (antes: diferença entre duas médias de 7 dias, mais sensível a uma semana atípica). Exige 8 leituras em pelo menos 14 dias.
+- **Cintura**: mínimo, data do mínimo e *Cintura desde o mínimo*; **cintura ÷ altura** no Resumo Semanal e no Painel.
+- **Gordura pela fita** (método da Marinha dos EUA: cintura, pescoço e altura), uma estimativa independente da balança. Só com `"sexo": "masculino"` em `config.json` (a fórmula feminina exige a anca).
+- **Fases** opcionais em `config.json` (nome, data de início, objetivo): nova folha *Fases* com as médias de 7 dias no início e no fim de cada fase, variações de peso, gordura, massa gorda, massa magra e cintura, e kg/semana.
+- **Aviso de leituras em atraso**: o subtítulo do Painel fica a vermelho quando a última leitura tem mais de 3 dias.
+- Painel com 16 cartões (4 filas); os cartões do pescoço e *Músculo desde o início* deram lugar aos novos (o músculo desde o início passa para a nota do cartão *Músculo*; o pescoço mantém o gráfico e a nota do último cartão).
+- **Leituras atípicas** assinaladas (nunca excluídas) na folha *Critérios e Qualidade*, que ganha também um bloco *Qualidade dos dados*.
+- Fórmulas com janelas de datas (médias móveis, primeiros/últimos 7 dias) com meio segundo de margem: uma leitura exatamente no limite da janela deixa de poder dar um resultado diferente no Excel e no Python e bloquear a atualização.
+
+**JSON (esquema 2.1.0, só chaves novas)**
+
+- `contexto` (altura, sexo, ano de nascimento, objetivo, data de referência), `fases`, `qualidade_dados` (dias desde a última leitura, cobertura, leituras atípicas).
+- `indicadores`: massa gorda e massa magra, valores no mínimo do peso, mínimo/máximo da média de 7 dias, `composicao_da_variacao`, mínimo da cintura, `cintura_altura`, `gordura_fita_percentagem`.
+- `massa_magra_kg` em cada medição; `massa_magra_media_kg` nos resumos; `cintura_altura` e `gordura_fita_percentagem` nas medidas manuais e no resumo semanal.
+- Novo ficheiro **`dados-zepp-life-ia-resumo.json`** (cerca de 10 % do tamanho): os mesmos agregados em formato tabular e só as leituras dos últimos 28 dias. Esquema próprio em `schema/dados-zepp-life-ia-resumo.schema.json`.
+
+**Atualização e segurança**
+
+- **Cópia das medidas manuais** em `privado\medidas-manuais.csv` a cada atualização; se o Excel for apagado, as medidas são repostas a partir dela (antes voltavam a ser só as do CSV inicial).
+- **Retenção do histórico**: todas as cópias dos últimos 30 dias e uma por mês das mais antigas (`-ManterHistoricoDias`; 0 = nunca apagar). Tentativas falhadas com mais de 30 dias são apagadas.
+- **Palavra-passe opcional**: ao iniciar sessão pergunta se a guarda; `-EsquecerPalavraPasse` apaga só a palavra-passe.
+- **Leitor fixado por SHA-256** (`bin\zepp-reader.exe.sha256`, criado na primeira utilização): um executável diferente é recusado antes de receber qualquer segredo. O CI publica o hash junto do executável.
+- Pesagens desaparecidas na Zepp: o atualizador pergunta (é preciso escrever `SIM`) em vez de obrigar a repetir com `-PermitirRemocoes`; sem janela interativa continua a recusar.
+
+**Testes e CI**
+
+- 56 testes pytest (14 novos) e 15 cenários do atualizador (6 novos: reposição após falha a meio da substituição, cópia CSV, retenção, leitor alterado, sessão expirada com palavra-passe guardada, esquecer só a palavra-passe).
+- CI também em Python 3.11 e 3.14.
+
 ## 2.1.0 — 2026-10-11
 
 Reorganização interna do código. O Excel (células, fórmulas, estilos, gráficos) e o JSON gerados são idênticos aos da versão 2.0.3, confirmado célula a célula em três casos (dados reais, fictícios e mudança de hora).

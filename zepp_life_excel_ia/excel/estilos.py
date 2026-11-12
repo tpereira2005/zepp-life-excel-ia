@@ -87,6 +87,37 @@ def data_formula(expr: str) -> str:
     return f'RIGHT("0"&DAY({expr}),2)&"/"&RIGHT("0"&MONTH({expr}),2)&"/"&YEAR({expr})'
 
 
+# Critérios de data/hora nas funções *IFS. As leituras têm segundos inteiros; o critério é convertido em
+# texto (15 algarismos) antes de ser comparado, o que pode trocar o lado de um valor exatamente no limite.
+# Meio segundo de margem torna o resultado independente desse arredondamento, sem mudar a regra.
+MEIO_SEGUNDO = "1/172800"
+
+
+def depois_de(expr: str) -> str:
+    """Critério: estritamente depois de expr."""
+    return f'">"&({expr}+{MEIO_SEGUNDO})'
+
+
+def ate(expr: str) -> str:
+    """Critério: até expr, inclusive."""
+    return f'"<"&({expr}+{MEIO_SEGUNDO})'
+
+
+def antes_de(expr: str) -> str:
+    """Critério: estritamente antes de expr."""
+    return f'"<"&({expr}-{MEIO_SEGUNDO})'
+
+
+def desde(expr: str) -> str:
+    """Critério: a partir de expr, inclusive."""
+    return f'">"&({expr}-{MEIO_SEGUNDO})'
+
+
+def numero_formula(expr: str, casas: int) -> str:
+    """Número como texto numa fórmula, com o separador decimal do Excel do utilizador (FIXED, não TEXT)."""
+    return f"FIXED({expr},{casas},TRUE)"
+
+
 def intervalo(folha: str, coluna: str, primeira: int, ultima: int) -> str:
     """Referência absoluta a uma coluna de outra folha, ex.: 'Medidas Manuais'!$C$4:$C$40."""
     return f"'{folha}'!${coluna}${primeira}:${coluna}${ultima}"

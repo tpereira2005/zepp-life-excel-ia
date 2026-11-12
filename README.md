@@ -26,14 +26,14 @@ Acompanha uma transformação corporal a partir das pesagens de uma **Xiaomi Mi 
 |---|---|
 | 📥 **Descarrega** | Todas as pesagens da conta Zepp Life (sessão reutilizada; credenciais cifradas com DPAPI do Windows). |
 | 🧹 **Seleciona** | Só leituras completas do perfil titular, desde a data de início; exclusões ficam listadas com o motivo. |
-| 📊 **Excel nativo** | Painel com indicadores, gráficos com média móvel de 7 dias, resumos semanais e mensais, medidas manuais editáveis. |
-| 🤖 **JSON para IA** | Esquema estável e versionado ([`schema/`](schema/dados-zepp-life-ia.schema.json)), datas ISO com UTC, unidades, dicionário de métricas e convenções explícitas. |
+| 📊 **Excel nativo** | Painel com indicadores (desde o início **e desde o mínimo**, massa gorda e massa magra, ritmo recente), gráficos com média móvel de 7 dias, resumos semanais e mensais, fases opcionais, medidas manuais editáveis. |
+| 🤖 **JSON para IA** | Esquema estável e versionado ([`schema/`](schema/dados-zepp-life-ia.schema.json)), datas ISO com UTC, unidades, dicionário de métricas e convenções explícitas. Vem em duas versões: completa e **compacta** (cerca de 10 % do tamanho). |
 | 🛡️ **Seguro** | Recusa descargas incompletas, prepara tudo numa pasta temporária, confirma cada valor no **Microsoft Excel real** e só depois substitui; as versões anteriores ficam em `privado\historico\`. |
 
 <table>
 <tr>
 <td width="50%"><img src="docs/imagens/painel-2.png" alt="Gráficos de gordura, músculo, cintura e pescoço"></td>
-<td width="50%"><img src="docs/imagens/medidas-manuais.png" alt="Folha de medidas manuais"><br><br><img src="docs/imagens/resumo-semanal.png" alt="Resumo semanal"></td>
+<td width="50%"><img src="docs/imagens/medidas-manuais.png" alt="Folha de medidas manuais"><br><br><img src="docs/imagens/resumo-semanal.png" alt="Resumo semanal"><br><br><img src="docs/imagens/fases.png" alt="Folha Fases (opcional)"></td>
 </tr>
 </table>
 
@@ -47,7 +47,7 @@ cd zepp-life-excel-ia
 INSTALAR.cmd
 ```
 
-1. Edite `config.json` (data de início, protocolo de pesagem, CSV inicial opcional).
+1. Edite `config.json` (data de início, protocolo de pesagem, CSV inicial opcional; e, se quiser, sexo, objetivo e fases).
 2. Coloque o leitor `zepp-reader.exe` em `bin\` — descarregue-o dos artefactos do [CI](https://github.com/tpereira2005/zepp-life-excel-ia/actions/workflows/ci.yml) ou compile-o (ver [instalação](docs/INSTALACAO.md)).
 3. Sincronize a balança na Zepp Life, feche o Excel e execute **`ATUALIZAR-EXCEL.cmd`**.
 
@@ -61,15 +61,16 @@ Para experimentar sem conta, abra o [exemplo fictício](docs/exemplo/) (Excel, J
 | `RECALCULAR-SEM-DESCARREGAR.cmd` | Depois de editar medidas manuais no Excel: regenera sem contactar a Xiaomi. |
 | `ESQUECER-CONTA.cmd` | Apaga a conta e a sessão guardadas neste computador (por exemplo, após mudar a palavra-passe). |
 
-Se apagou pesagens de propósito na Zepp Life, a proteção contra perdas interrompe a atualização; nesse caso use `scripts\atualizar-zepp.ps1 -PermitirRemocoes`. Mais detalhes em [docs/UTILIZACAO.md](docs/UTILIZACAO.md).
+Se apagou pesagens de propósito na Zepp Life, a proteção contra perdas pára e pergunta se as quer remover também aqui (responda `SIM`). Mais detalhes em [docs/UTILIZACAO.md](docs/UTILIZACAO.md).
 
 ### Onde ficam os ficheiros
 
 ```
 zepp-life-excel-ia\
 ├─ ATUALIZAR-EXCEL.cmd · RECALCULAR-SEM-DESCARREGAR.cmd · ESQUECER-CONTA.cmd · INSTALAR.cmd
-├─ Excel e JSON\          ← o que se abre: analise-historico-zepp-life.xlsx e dados-zepp-life-ia.json
-├─ privado\               entradas, última exportação, histórico, temporários, backups e notas
+├─ Excel e JSON\          ← o que se abre: analise-historico-zepp-life.xlsx, dados-zepp-life-ia.json
+│                           e dados-zepp-life-ia-resumo.json (versão compacta)
+├─ privado\               entradas, última exportação, cópia das medidas manuais, histórico, temporários, backups
 ├─ config.json            configuração pessoal (copiada de config.example.json)
 └─ bin\zepp-reader.exe    leitor da Zepp Life
 ```
@@ -82,6 +83,8 @@ zepp-life-excel-ia\
 - **Semanas** de domingo a sábado em `Europe/Lisbon`; **médias** por leitura; **dias com medição** mostram quantos dias contribuíram.
 - **Variações** entre períodos consecutivos; gordura em pontos percentuais; cintura face à medição anterior disponível.
 - **Última leitura** pelo instante UTC, para não haver ambiguidade na mudança de hora.
+- **Desde o mínimo**: comparação com a média de 7 dias mais baixa do peso; **massa magra** = peso − massa gorda; **ritmo** = tendência dos últimos 28 dias.
+- **Leituras atípicas** são assinaladas, nunca excluídas.
 - **Ausências são `null`**, nunca zero. Os tracejados dos gráficos são só visuais — nenhum valor é inventado.
 
 Tudo explicado em [docs/DADOS-E-REGRAS.md](docs/DADOS-E-REGRAS.md) e [docs/JSON-PARA-IA.md](docs/JSON-PARA-IA.md).
@@ -95,7 +98,7 @@ flowchart LR
     V --> C[gerar<br/>zepp_life_excel_ia]
     D[(Excel atual<br/>medidas manuais)] --> C
     C --> E[Excel nativo<br/>openpyxl]
-    C --> F[JSON para IA<br/>esquema 2.0.0]
+    C --> F[JSON para IA<br/>completo 2.1.0 + compacto]
     E -->|células esperadas| G[Microsoft Excel<br/>COM]
     B -->|tudo validado| H[(Excel e JSON/<br/>privado/historico)]
 ```
@@ -104,7 +107,7 @@ Os cálculos são feitos uma única vez em Python. O Excel recebe fórmulas nati
 
 ## Privacidade
 
-Os dados corporais são pessoais. O repositório **não contém** dados reais: `config.json`, `Excel e JSON/` e `privado/` estão no `.gitignore`. Conta e sessão ficam fora do projeto, em `%LOCALAPPDATA%\ZeppLifeExcel`, cifradas com DPAPI e acessíveis apenas ao utilizador Windows. O JSON não inclui credenciais, tokens, email nem o identificador do dispositivo.
+Os dados corporais são pessoais. O repositório **não contém** dados reais: `config.json`, `Excel e JSON/` e `privado/` estão no `.gitignore`. A sessão (e a palavra-passe, só se escolher guardá-la) ficam fora do projeto, em `%LOCALAPPDATA%\ZeppLifeExcel`, cifradas com DPAPI e acessíveis apenas ao utilizador Windows. O leitor que recebe a palavra-passe é fixado por SHA-256. O JSON não inclui credenciais, tokens, email nem o identificador do dispositivo.
 
 ## Desenvolvimento
 
@@ -115,15 +118,15 @@ zepp_life_excel_ia\
 ├─ metricas.py      registo único das métricas (JSON, colunas do Excel, resumos, limites)
 ├─ exportacao.py    validação de uma nova descarga
 ├─ leituras.py      fuso horário, seleção e motivos de exclusão
-├─ medidas.py       medidas manuais (leitura pelo cabeçalho, CSV inicial, prioridades)
-├─ resumos.py       cálculos: períodos, médias móveis, indicadores (fonte única)
+├─ medidas.py       medidas manuais (leitura pelo cabeçalho, CSV inicial, cópia de segurança, prioridades)
+├─ resumos.py       cálculos: períodos, médias móveis, indicadores, mínimo, ritmo, fases, qualidade (fonte única)
 ├─ excel\           um módulo por folha + estilos e gráficos
 ├─ verificacao.py   corre o Excel real e compara as células esperadas
-└─ ia_json.py       JSON para IA
+└─ ia_json.py       JSON para IA (completo e compacto)
 ```
 
 ```bat
-.venv\Scripts\python -m zepp_life_excel_ia gerar --origem exportacao.json --excel livro.xlsx --json dados.json [--existente atual.xlsx] [--sem-excel-real]
+.venv\Scripts\python -m zepp_life_excel_ia gerar --origem exportacao.json --excel livro.xlsx --json dados.json [--json-resumo resumo.json] [--existente atual.xlsx] [--sem-excel-real]
 .venv\Scripts\python -m zepp_life_excel_ia validar-exportacao --nova nova.json --anterior anterior.json
 ```
 
@@ -138,7 +141,7 @@ zepp_life_excel_ia\
 powershell -NoProfile -ExecutionPolicy Bypass -File tests\atualizador.Tests.ps1
 ```
 
-Os testes usam apenas dados fictícios. Com o Excel instalado, um dos testes abre o livro no Excel real e confirma todas as células esperadas; o atualizador é testado com um leitor simulado e pastas temporárias. O CI corre os testes Python em Windows e Linux, os do atualizador em Windows, o ruff, e compila o leitor Go.
+Os testes usam apenas dados fictícios. Com o Excel instalado, um dos testes abre o livro no Excel real e confirma todas as células esperadas; o atualizador é testado com um leitor simulado e pastas temporárias. O CI corre os testes Python em Windows e Linux (Python 3.11, 3.12 e 3.14), os do atualizador em Windows, o ruff, e compila o leitor Go, publicando o executável com o seu SHA-256.
 
 ### Documentação
 
@@ -147,7 +150,7 @@ Os testes usam apenas dados fictícios. Com o Excel instalado, um dos testes abr
 | [INSTALACAO.md](docs/INSTALACAO.md) | Instalação, configuração, leitor e primeira autenticação |
 | [UTILIZACAO.md](docs/UTILIZACAO.md) | Atualizações, medidas manuais e folhas do Excel |
 | [DADOS-E-REGRAS.md](docs/DADOS-E-REGRAS.md) | Seleção das leituras, agregações e gráficos |
-| [JSON-PARA-IA.md](docs/JSON-PARA-IA.md) | Estrutura e convenções do JSON 2.0.0 |
+| [JSON-PARA-IA.md](docs/JSON-PARA-IA.md) | Estrutura e convenções do JSON 2.1.0 e da versão compacta |
 | [ARQUITETURA.md](docs/ARQUITETURA.md) | Módulos, fluxo da atualização e decisões |
 | [RELATORIO-REVISAO.md](docs/RELATORIO-REVISAO.md) | O que mudou nas revisões e como foi verificado |
 | [CHANGELOG.md](CHANGELOG.md) | Registo de versões |

@@ -1,6 +1,7 @@
 """Medidas manuais semanais (cintura e pescoço): preservação, importação inicial e validação."""
 from __future__ import annotations
 
+import csv
 import math
 import re
 from dataclasses import dataclass
@@ -45,7 +46,7 @@ class Semana:
     cintura: float | None
     pescoco: float | None
     notas: str | None
-    origem: str = "nova"          # excel | csv | nova
+    origem: str = "nova"          # excel | copia | csv | nova
 
     @property
     def rotulo(self) -> str:
@@ -145,6 +146,41 @@ def ler_csv(caminho: Path) -> dict[date, Semana]:
         notas = ("Sem medição: esqueci-me" if cintura is None and pescoco is None else
                  f"Leituras — cintura: {leituras_cintura.strip()}; pescoço: {leituras_pescoco.strip()}")
         semanas[domingo(dia)] = Semana(domingo(dia), dia, cintura, pescoco, notas, "csv")
+    return semanas
+
+
+COPIA_CABECALHOS = ["Semana (domingo)", "Data da medição", "Cintura (cm)", "Pescoço (cm)", "Observações"]
+
+
+def escrever_copia(semanas: list[Semana], caminho: Path) -> None:
+    """Cópia de segurança em texto simples das medidas manuais (CSV com ';', UTF-8, datas AAAA-MM-DD)."""
+    numero = lambda v: "" if v is None else repr(float(v))
+    with caminho.open("w", encoding="utf-8-sig", newline="") as f:
+        escritor = csv.writer(f, delimiter=";")
+        escritor.writerow(COPIA_CABECALHOS)
+        for s in semanas:
+            escritor.writerow([s.inicio.isoformat(), s.data.isoformat() if s.data else "", numero(s.cintura),
+                               numero(s.pescoco), s.notas or ""])
+
+
+def ler_copia(caminho: Path) -> dict[date, Semana]:
+    """Lê a cópia escrita por `escrever_copia` (usada quando o Excel anterior não existe)."""
+    semanas: dict[date, Semana] = {}
+    with caminho.open(encoding="utf-8-sig", newline="") as f:
+        linhas = list(csv.reader(f, delimiter=";"))
+    if not linhas or linhas[0] != COPIA_CABECALHOS:
+        raise ValueError(f"Cópia das medidas manuais com formato inesperado: {caminho.name}")
+    for linha in linhas[1:]:
+        if not linha:
+            continue
+        if len(linha) != len(COPIA_CABECALHOS):
+            raise ValueError(f"Linha inválida na cópia das medidas manuais: {linha!r}")
+        inicio = date.fromisoformat(linha[0])
+        if inicio.isoweekday() != 7 or inicio in semanas:
+            raise ValueError(f"Semana inválida ou repetida na cópia das medidas manuais: {linha[0]}")
+        numero = lambda t: float(t) if t else None
+        semanas[inicio] = Semana(inicio, date.fromisoformat(linha[1]) if linha[1] else None, numero(linha[2]),
+                                 numero(linha[3]), linha[4] or None, "copia")
     return semanas
 
 

@@ -1,0 +1,23 @@
+{
+  "inicio_transformacao": "2026-01-04",
+  "fuso_horario": "Europe/Lisbon",
+  "perfil_titular_id": -1,
+  "altura_perfil_sem_id_cm": 178,
+  "protocolo_pesagem": "Ao acordar, depois de ir à casa de banho.",
+  "csv_medidas_iniciais": "inputs/medicoes.csv",
+  "sexo": "masculino",
+  "ano_nascimento": 1990,
+  "objetivo": "Perder gordura e depois manter o peso",
+  "fases": [
+    {
+      "nome": "Défice",
+      "inicio": "2026-01-04",
+      "objetivo": "Perder cerca de 0,5 kg por semana"
+    },
+    {
+      "nome": "Manutenção",
+      "inicio": "2026-04-19",
+      "objetivo": "Estabilizar o peso"
+    }
+  ]
+}

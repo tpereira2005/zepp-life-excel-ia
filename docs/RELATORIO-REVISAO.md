@@ -1,8 +1,10 @@
-# Relatório das revisões 2.0.0 a 2.1.0 (para revisão por outro agente)
+# Relatório das revisões 2.0.0 a 2.2.0 (para revisão por outro agente)
 
 Este relatório descreve o que mudou, porquê, e como foi verificado, por ordem cronológica. Os valores pessoais da verificação com dados reais estão num relatório privado fora do repositório (`privado/notas/VERIFICACAO-DADOS-REAIS.md`).
 
 > **Nomes atuais.** As secções 2.0.x referem a estrutura dessa altura: o pacote `zepp_transformacao/` é hoje `zepp_life_excel_ia/`, `excel.py` é o pacote `excel/` (um módulo por folha), `leituras.METRICAS` passou para `metricas.py` e a validação da exportação passou do PowerShell para `exportacao.py`. Ver a secção 2.1.0 e [ARQUITETURA.md](ARQUITETURA.md).
+
+> **A revisão mais recente (2.2.0) está no fim deste documento.**
 
 ## Âmbito aprovado
 
@@ -77,3 +79,52 @@ Objetivo: facilitar a manutenção sem mudar o resultado.
 
 Nota encontrada durante o trabalho: no Windows PowerShell 5.1, redirecionar o stderr do Python com `*>>` embrulhava cada linha num registo de erro ("python.exe : ERRO: …") partido pela largura da consola, pelo que a mensagem de erro não era encontrada. O atualizador passou a gravar cada linha como texto simples.
 
+
+## Indicadores da fase atual, JSON compacto e proteção dos dados (2.2.0)
+
+Revisão crítica completa do projeto, seguida de um plano por prioridades aprovado na íntegra pelo utilizador, incluindo seis decisões: (D1) mínimo/máximo automáticos e fases opcionais em `config.json`; (D2) estimativa pela fita com `sexo` em `config.json`; (D3) manter o JSON completo e acrescentar um ficheiro compacto; (D4) guardar a palavra-passe passa a ser uma escolha; (D5) retenção do histórico (30 dias + uma cópia por mês); (D6) manter a regra "médias por leitura" para repesagens.
+
+### Problemas encontrados e o que foi feito
+
+| # | Problema | Alteração | Onde |
+|---|---|---|---|
+| 1 | O Painel só comparava com o início: com uma descida seguida de uma subida, a recuperação desde o ponto mais baixo não aparecia em lado nenhum | Mínimo da média de 7 dias do peso (valor e data) e variações "desde o mínimo" de peso, massa gorda, massa magra e cintura | `resumos.extremos`, `resumos.indicadores`, `excel/folha_painel.py` |
+| 2 | Sem massa magra nem repartição da variação do peso | Métrica derivada `massa_magra` no registo; `Composicao` (desde o início e desde o mínimo) | `metricas.py`, `leituras.py`, `resumos._composicao` |
+| 3 | Ritmo recente com dois pontos (média de 7 dias agora vs. há 3 semanas) | Regressão linear das leituras dos últimos 28 dias; coluna auxiliar oculta + `SLOPE` no Excel | `resumos.ritmo_semanal`, `excel/folha_medicoes.py` |
+| 4 | Cintura e pescoço pouco aproveitados | Cintura ÷ altura; gordura pela fita (Marinha dos EUA, só sexo masculino); mínimo da cintura | `resumos.gordura_fita`, `excel/folha_resumos.py` |
+| 5 | Sem noção de fases | `fases` opcionais em `config.json`; folha *Fases*; chave `fases` no JSON | `config.py`, `resumos.fases`, `excel/folha_fases.py` |
+| 6 | "Últimos 7 dias" ancorados na última leitura sem aviso de dados antigos | Subtítulo do Painel a vermelho após 3 dias; `qualidade_dados.dias_desde_ultima_leitura`; aviso na consola | `excel/folha_painel.py`, `ia_json.py`, `gerar.py` |
+| 7 | JSON grande demais para muitas IA | Ficheiro compacto derivado do completo (tabelas `{colunas, linhas}`, leituras dos últimos 28 dias) | `ia_json.construir_resumo` |
+| 8 | Leituras de bioimpedância anómalas passavam sem sinal | Assinaladas (nunca excluídas) face à mediana das vizinhas a ±7 dias | `resumos.atipicas`, `excel/folha_criterios.py` |
+| 9 | Risco teórico: leitura exatamente no limite de uma janela de 7 dias podia dar valores diferentes no Excel e no Python e bloquear a atualização | Meio segundo de margem em todos os critérios de data/hora das fórmulas | `excel/estilos.py` (`depois_de`, `ate`, `antes_de`, `desde`) |
+| 10 | As medidas manuais só existiam no Excel gerado; apagar o Excel fazia-as voltar ao CSV inicial sem aviso | Cópia `privado/medidas-manuais.csv` em cada atualização, usada (com aviso) se o Excel não existir | `medidas.escrever_copia/ler_copia`, `gerar._medidas_manuais` |
+| 11 | Histórico e tentativas falhadas sem limite | 30 dias completos + a última cópia de cada mês; tentativas falhadas com mais de 30 dias apagadas | `atualizar-zepp.ps1` (`Limpar-Historico`) |
+| 12 | Palavra-passe sempre guardada | Pergunta ao iniciar sessão; `-EsquecerPalavraPasse` | `atualizar-zepp.ps1` |
+| 13 | Nada garantia que o leitor (que recebe a palavra-passe) era o mesmo de sempre | Hash SHA-256 registado na primeira utilização e confirmado antes de cada execução; o CI publica o hash | `atualizar-zepp.ps1` (`Confirmar-Leitor`), `.github/workflows/ci.yml` |
+| 14 | Pesagem apagada na Zepp obrigava a repetir com `-PermitirRemocoes` | Código de saída 2 em `validar-exportacao`; o atualizador pergunta (resposta `SIM`) | `exportacao.PesagensRemovidas`, `__main__.py`, `atualizar-zepp.ps1` |
+| 15 | Caminhos do atualizador sem teste; CI só em Python 3.12 | 6 cenários novos; CI em 3.11, 3.12 e 3.14 | `tests/atualizador.Tests.ps1`, `ci.yml` |
+
+### O que **não** mudou (regras decididas com o utilizador)
+
+Semanas de domingo a sábado em hora local; médias por leitura (repesagens contam todas); última leitura pelo instante UTC; os valores do Excel ganham ao CSV, incluindo campos apagados; `null` nunca é zero; sem filtro por hora. A folha *Medidas Manuais* (a única que o utilizador edita) não foi alterada. Nenhuma leitura passou a ser excluída: as atípicas são só assinaladas.
+
+### Como foi testado
+
+1. **Cópia de segurança antes de tudo:** ZIP de `config.json`, `Excel e JSON/` e `privado/` (392 ficheiros) com manifesto SHA-256 em `privado/backups/`, relido e conferido ficheiro a ficheiro. Trabalho num ramo próprio (`melhorias-2.2.0`).
+2. **Valores anteriores inalterados:** antes de alterar o código geraram-se referências (Excel + JSON) para dados reais, fictícios e mudança de hora; depois, todos os valores que existiam no JSON antigo foram comparados com o novo. Diferenças: só `versao_esquema`, `gerador`, o hash do Excel, a descrição dos indicadores e o ritmo (mudança deliberada). Nenhuma outra, nos três casos.
+3. **Fórmulas novas confirmadas no Microsoft Excel real** contra o Python (zero diferenças, zero erros de fórmula): dados reais com a configuração real; dados reais com uma configuração de teste (sexo, fases, incluindo uma fase futura sem leituras); dados fictícios com fases; mudança de hora. Cada célula nova tem `Esperado`: massa magra, coluna auxiliar do ritmo, mínimo e data do mínimo, todos os cartões, cintura ÷ altura, gordura pela fita e todas as colunas da folha *Fases*.
+4. **pytest:** 56 testes (42 anteriores ajustados + 14 novos em `tests/test_indicadores.py`): massa magra fecha a conta com o peso; mínimo ignora os primeiros 6 dias e resolve empates pela leitura mais antiga; ritmo é o declive e respeita os mínimos; fórmula da fita (valor de referência e casos sem resultado); mínimo da cintura; atípicas assinaladas e não excluídas; qualidade dos dados; fases (JSON validado pelo esquema, folha, Excel real); configuração inválida; JSON compacto (esquema próprio, menos de 1/3 do tamanho, agregados iguais aos do completo); cópia das medidas manuais (ida e volta, reposição, prioridade do Excel, cópia ilegível); e **leituras exatamente a 7, 14, 21 e 28 dias da última**, confirmadas no Excel real.
+5. **Atualizador:** 15 cenários com leitor simulado e pastas temporárias (9 anteriores + falha a meio da substituição com reposição, Excel apagado com reposição pela cópia CSV, retenção do histórico, leitor alterado recusado, sessão expirada com palavra-passe guardada, esquecer só a palavra-passe).
+6. **Dados reais** com `RECALCULAR-SEM-DESCARREGAR` (sem contactar a Xiaomi): ver o relatório privado `privado/notas/`.
+7. **Revisão visual** no Excel real (capturas do Painel, Fases, Resumo Semanal e Critérios), com dados reais e com o exemplo fictício.
+8. `ruff check .` sem avisos.
+
+### Não feito / limitações
+
+- A descarga real (`ATUALIZAR-EXCEL.cmd`) não foi executada: exigiria a sessão Xiaomi do utilizador. Os caminhos de autenticação novos (pergunta sobre a palavra-passe, pergunta sobre pesagens em falta) são interativos e foram verificados por leitura do código; os caminhos não interativos equivalentes têm teste. O fluxo de verificação Xiaomi no navegador continua sem teste automático.
+- O leitor Go não foi recompilado localmente (Go não instalado). O hash registado na primeira utilização fixa o executável atual, seja ele qual for: confirmar uma vez que corresponde ao publicado pelo CI.
+- A estimativa pela fita só existe para sexo masculino (a fórmula feminina exige a anca).
+- As fórmulas do Excel continuam a só ser confirmadas onde há Microsoft Excel (no CI esse passo é ignorado com aviso).
+- As notas dos cartões (texto) não têm valor esperado; os números que mostram vêm de células que têm.
+- Semanas novas continuam a nascer com a data de domingo pré-preenchida.
+- Os pacotes do leitor Go herdados do projeto original e não usados continuam no repositório.

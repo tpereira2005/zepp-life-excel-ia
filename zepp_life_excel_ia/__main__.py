@@ -2,9 +2,11 @@
 
   python -m zepp_life_excel_ia gerar --origem exportacao.json --excel saida.xlsx --json saida.json
          [--existente atual.xlsx] [--config config.json] [--hoje AAAA-MM-DD] [--sem-excel-real] [--graficos pasta]
+         [--json-resumo resumo.json] [--copia-manuais copia.csv] [--guardar-copia-manuais nova-copia.csv]
   python -m zepp_life_excel_ia validar-exportacao --nova nova.json [--anterior anterior.json] [--permitir-remocoes]
 
-Erros: mensagem numa linha que começa por "ERRO:" e código de saída 1.
+Erros: mensagem numa linha que começa por "ERRO:" e código de saída 1 (2 em validar-exportacao quando
+o único problema são pesagens que desapareceram: o atualizador pode perguntar se são aceites).
 """
 from __future__ import annotations
 
@@ -21,7 +23,10 @@ from .gerar import gerar
 def _gerar(a) -> None:
     gerar(Path(a.origem), Path(a.excel), Path(a.json), existente=Path(a.existente) if a.existente else None,
           config=Path(a.config) if a.config else None, hoje=date.fromisoformat(a.hoje) if a.hoje else None,
-          verificar_excel=not a.sem_excel_real, graficos=Path(a.graficos) if a.graficos else None)
+          verificar_excel=not a.sem_excel_real, graficos=Path(a.graficos) if a.graficos else None,
+          json_resumo=Path(a.json_resumo) if a.json_resumo else None,
+          copia_manuais=Path(a.copia_manuais) if a.copia_manuais else None,
+          guardar_copia_manuais=Path(a.guardar_copia_manuais) if a.guardar_copia_manuais else None)
 
 
 def _validar(a) -> None:
@@ -46,6 +51,9 @@ def main(argv=None) -> int:
     g.add_argument("--hoje", help="data de referência AAAA-MM-DD (testes)")
     g.add_argument("--sem-excel-real", action="store_true", help="não validar no Microsoft Excel")
     g.add_argument("--graficos", help="exportar os gráficos do Painel em PNG para esta pasta")
+    g.add_argument("--json-resumo", help="também criar a versão compacta do JSON para IA")
+    g.add_argument("--copia-manuais", help="cópia CSV das medidas manuais, usada se o livro atual não existir")
+    g.add_argument("--guardar-copia-manuais", help="escrever aqui a cópia CSV atualizada das medidas manuais")
     g.set_defaults(funcao=_gerar)
 
     v = comandos.add_parser("validar-exportacao", help="validar uma nova descarga antes de a usar")
@@ -57,6 +65,9 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
     try:
         args.funcao(args)
+    except exportacao.PesagensRemovidas as erro:
+        print(f"ERRO: {erro}", file=sys.stderr)
+        return 2
     except Exception as erro:
         print(f"ERRO: {erro}", file=sys.stderr)
         return 1

@@ -17,7 +17,10 @@
     "pesagens_excluidas",
     "medidas_manuais",
     "resumos_semanais",
-    "resumos_mensais"
+    "resumos_mensais",
+    "contexto",
+    "fases",
+    "qualidade_dados"
   ],
   "$defs": {
     "data": {
@@ -79,7 +82,11 @@
         "media_7d_atual",
         "variacao_desde_inicio",
         "ultima_leitura",
-        "ritmo_por_semana_ultimas_4_semanas"
+        "ritmo_por_semana_ultimas_4_semanas",
+        "media_7d_no_minimo_do_peso",
+        "variacao_desde_minimo_do_peso",
+        "minimo_media_7d",
+        "maximo_media_7d"
       ],
       "properties": {
         "media_7d_inicial": {
@@ -96,6 +103,18 @@
         },
         "ritmo_por_semana_ultimas_4_semanas": {
           "$ref": "#/$defs/numero_ou_null"
+        },
+        "media_7d_no_minimo_do_peso": {
+          "$ref": "#/$defs/numero_ou_null"
+        },
+        "variacao_desde_minimo_do_peso": {
+          "$ref": "#/$defs/numero_ou_null"
+        },
+        "minimo_media_7d": {
+          "$ref": "#/$defs/extremo_ou_null"
+        },
+        "maximo_media_7d": {
+          "$ref": "#/$defs/extremo_ou_null"
         }
       }
     },
@@ -113,7 +132,10 @@
             "ultima",
             "data_ultima",
             "variacao_desde_inicio",
-            "medicoes"
+            "medicoes",
+            "minima",
+            "data_minima",
+            "variacao_desde_minima"
           ],
           "properties": {
             "primeira": {
@@ -134,15 +156,241 @@
             "medicoes": {
               "type": "integer",
               "minimum": 1
+            },
+            "minima": {
+              "$ref": "#/$defs/numero"
+            },
+            "data_minima": {
+              "$ref": "#/$defs/data"
+            },
+            "variacao_desde_minima": {
+              "$ref": "#/$defs/numero"
             }
           }
         }
       ]
+    },
+    "hora_local_ou_null": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/hora_local"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "texto_ou_null": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "extremo_ou_null": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "valor",
+            "data_hora_local"
+          ],
+          "properties": {
+            "valor": {
+              "$ref": "#/$defs/numero"
+            },
+            "data_hora_local": {
+              "$ref": "#/$defs/hora_local"
+            }
+          }
+        }
+      ]
+    },
+    "composicao_ou_null": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "variacao_peso_kg",
+            "variacao_massa_gorda_kg",
+            "variacao_massa_magra_kg",
+            "fracao_massa_gorda"
+          ],
+          "properties": {
+            "variacao_peso_kg": {
+              "$ref": "#/$defs/numero"
+            },
+            "variacao_massa_gorda_kg": {
+              "$ref": "#/$defs/numero"
+            },
+            "variacao_massa_magra_kg": {
+              "$ref": "#/$defs/numero"
+            },
+            "fracao_massa_gorda": {
+              "$ref": "#/$defs/numero_ou_null"
+            }
+          }
+        }
+      ]
+    },
+    "fase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nome",
+        "objetivo",
+        "inicio",
+        "fim",
+        "dias",
+        "leituras",
+        "ultima_leitura_local",
+        "peso_kg",
+        "gordura_corporal_percentagem",
+        "massa_gorda_kg",
+        "massa_magra_kg",
+        "ritmo_peso_kg_por_semana",
+        "cintura_cm"
+      ],
+      "properties": {
+        "nome": {
+          "type": "string"
+        },
+        "objetivo": {
+          "$ref": "#/$defs/texto_ou_null"
+        },
+        "inicio": {
+          "$ref": "#/$defs/data"
+        },
+        "fim": {
+          "$ref": "#/$defs/data"
+        },
+        "dias": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "leituras": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ultima_leitura_local": {
+          "$ref": "#/$defs/hora_local_ou_null"
+        },
+        "peso_kg": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "media_7d_inicial",
+            "media_7d_final",
+            "variacao"
+          ],
+          "properties": {
+            "media_7d_inicial": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "media_7d_final": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "variacao": {
+              "$ref": "#/$defs/numero_ou_null"
+            }
+          }
+        },
+        "gordura_corporal_percentagem": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "media_7d_inicial",
+            "media_7d_final",
+            "variacao"
+          ],
+          "properties": {
+            "media_7d_inicial": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "media_7d_final": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "variacao": {
+              "$ref": "#/$defs/numero_ou_null"
+            }
+          }
+        },
+        "massa_gorda_kg": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "media_7d_inicial",
+            "media_7d_final",
+            "variacao"
+          ],
+          "properties": {
+            "media_7d_inicial": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "media_7d_final": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "variacao": {
+              "$ref": "#/$defs/numero_ou_null"
+            }
+          }
+        },
+        "massa_magra_kg": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "media_7d_inicial",
+            "media_7d_final",
+            "variacao"
+          ],
+          "properties": {
+            "media_7d_inicial": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "media_7d_final": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "variacao": {
+              "$ref": "#/$defs/numero_ou_null"
+            }
+          }
+        },
+        "ritmo_peso_kg_por_semana": {
+          "$ref": "#/$defs/numero_ou_null"
+        },
+        "cintura_cm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "primeira",
+            "ultima",
+            "variacao"
+          ],
+          "properties": {
+            "primeira": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "ultima": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "variacao": {
+              "$ref": "#/$defs/numero_ou_null"
+            }
+          }
+        }
+      }
     }
   },
   "properties": {
     "versao_esquema": {
-      "const": "2.0.0"
+      "const": "2.1.0"
     },
     "metadados": {
       "type": "object",
@@ -312,7 +560,12 @@
         "gordura_corporal_percentagem",
         "massa_muscular_kg",
         "cintura_cm",
-        "pescoco_cm"
+        "pescoco_cm",
+        "massa_gorda_kg",
+        "massa_magra_kg",
+        "gordura_fita_percentagem",
+        "cintura_altura",
+        "composicao_da_variacao"
       ],
       "properties": {
         "descricao": {
@@ -332,6 +585,38 @@
         },
         "pescoco_cm": {
           "$ref": "#/$defs/indicador_manual"
+        },
+        "massa_gorda_kg": {
+          "$ref": "#/$defs/indicador"
+        },
+        "massa_magra_kg": {
+          "$ref": "#/$defs/indicador"
+        },
+        "gordura_fita_percentagem": {
+          "$ref": "#/$defs/indicador_manual"
+        },
+        "cintura_altura": {
+          "$ref": "#/$defs/numero_ou_null"
+        },
+        "composicao_da_variacao": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "desde_inicio",
+            "desde_minimo_do_peso",
+            "data_minimo_do_peso_local"
+          ],
+          "properties": {
+            "desde_inicio": {
+              "$ref": "#/$defs/composicao_ou_null"
+            },
+            "desde_minimo_do_peso": {
+              "$ref": "#/$defs/composicao_ou_null"
+            },
+            "data_minimo_do_peso_local": {
+              "$ref": "#/$defs/hora_local_ou_null"
+            }
+          }
         }
       }
     },
@@ -351,7 +636,8 @@
           "gordura_corporal_percentagem",
           "massa_muscular_kg",
           "massa_gorda_kg",
-          "peso_media_7d_kg"
+          "peso_media_7d_kg",
+          "massa_magra_kg"
         ],
         "properties": {
           "id_medicao": {
@@ -418,6 +704,9 @@
           "massa_gorda_kg": {
             "$ref": "#/$defs/numero"
           },
+          "massa_magra_kg": {
+            "$ref": "#/$defs/numero"
+          },
           "peso_media_7d_kg": {
             "$ref": "#/$defs/numero"
           },
@@ -472,7 +761,9 @@
           "cintura_leituras_cm",
           "pescoco_leituras_cm",
           "estado",
-          "observacoes"
+          "observacoes",
+          "cintura_altura",
+          "gordura_fita_percentagem"
         ],
         "properties": {
           "semana_inicio": {
@@ -491,6 +782,12 @@
             "$ref": "#/$defs/numero_ou_null"
           },
           "variacao_cintura_cm": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "cintura_altura": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "gordura_fita_percentagem": {
             "$ref": "#/$defs/numero_ou_null"
           },
           "cintura_leituras_cm": {
@@ -531,7 +828,10 @@
           "peso_medio_kg",
           "cintura_cm",
           "variacao_cintura_cm",
-          "pescoco_cm"
+          "pescoco_cm",
+          "massa_magra_media_kg",
+          "cintura_altura",
+          "gordura_fita_percentagem"
         ],
         "properties": {
           "rotulo": {
@@ -575,6 +875,9 @@
           "massa_gorda_media_kg": {
             "$ref": "#/$defs/numero_ou_null"
           },
+          "massa_magra_media_kg": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
           "agua_media_percentagem": {
             "$ref": "#/$defs/numero_ou_null"
           },
@@ -604,6 +907,12 @@
           },
           "pescoco_cm": {
             "$ref": "#/$defs/numero_ou_null"
+          },
+          "cintura_altura": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
+          "gordura_fita_percentagem": {
+            "$ref": "#/$defs/numero_ou_null"
           }
         }
       }
@@ -622,7 +931,8 @@
           "parcial",
           "peso_medio_kg",
           "cintura_media_cm",
-          "pescoco_medio_cm"
+          "pescoco_medio_cm",
+          "massa_magra_media_kg"
         ],
         "properties": {
           "rotulo": {
@@ -667,6 +977,9 @@
           "massa_gorda_media_kg": {
             "$ref": "#/$defs/numero_ou_null"
           },
+          "massa_magra_media_kg": {
+            "$ref": "#/$defs/numero_ou_null"
+          },
           "agua_media_percentagem": {
             "$ref": "#/$defs/numero_ou_null"
           },
@@ -693,6 +1006,173 @@
           },
           "pescoco_medio_cm": {
             "$ref": "#/$defs/numero_ou_null"
+          }
+        }
+      }
+    },
+    "contexto": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_referencia",
+        "altura_cm",
+        "sexo",
+        "ano_nascimento",
+        "idade_aproximada_anos",
+        "objetivo"
+      ],
+      "properties": {
+        "data_referencia": {
+          "$ref": "#/$defs/data"
+        },
+        "altura_cm": {
+          "$ref": "#/$defs/numero_ou_null"
+        },
+        "sexo": {
+          "enum": [
+            "masculino",
+            "feminino",
+            null
+          ]
+        },
+        "ano_nascimento": {
+          "$ref": "#/$defs/inteiro_ou_null"
+        },
+        "idade_aproximada_anos": {
+          "$ref": "#/$defs/inteiro_ou_null"
+        },
+        "objetivo": {
+          "$ref": "#/$defs/texto_ou_null"
+        }
+      }
+    },
+    "fases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/fase"
+      }
+    },
+    "qualidade_dados": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dias_desde_ultima_leitura",
+        "dias_do_periodo",
+        "dias_com_leitura",
+        "dias_com_varias_leituras",
+        "maior_intervalo_sem_leituras_dias",
+        "cobertura_metricas",
+        "medidas_manuais",
+        "criterio_leituras_atipicas",
+        "leituras_atipicas"
+      ],
+      "properties": {
+        "dias_desde_ultima_leitura": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dias_do_periodo": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dias_com_leitura": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dias_com_varias_leituras": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maior_intervalo_sem_leituras_dias": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cobertura_metricas": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "medidas_manuais": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "completa",
+            "incompleta",
+            "sem_medicao",
+            "por_preencher"
+          ],
+          "properties": {
+            "completa": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "incompleta": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sem_medicao": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "por_preencher": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "criterio_leituras_atipicas": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "descricao",
+            "desvio_absoluto_maximo",
+            "desvio_relativo_maximo"
+          ],
+          "properties": {
+            "descricao": {
+              "type": "string"
+            },
+            "desvio_absoluto_maximo": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "desvio_relativo_maximo": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "leituras_atipicas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id_medicao",
+              "data_hora_local",
+              "motivos"
+            ],
+            "properties": {
+              "id_medicao": {
+                "type": "integer"
+              },
+              "data_hora_local": {
+                "$ref": "#/$defs/hora_local"
+              },
+              "motivos": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              }
+            }
           }
         }
       }

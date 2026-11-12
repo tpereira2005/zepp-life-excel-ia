@@ -40,7 +40,12 @@ class Coluna:
     centrado: bool = False
 
 
-def _colunas(semanal: bool, cfg: Config, medicoes: FolhaMedicoes, manuais: FolhaManuais) -> list[Coluna]:
+CINTURA_ALTURA = "Cintura ÷ altura"
+GORDURA_FITA = "Gordura pela fita (%)"
+
+
+def _colunas(semanal: bool, cfg: Config, medicoes: FolhaMedicoes, manuais: FolhaManuais,
+             altura: float | None) -> list[Coluna]:
     datas, dias = medicoes.intervalo("Data/hora"), medicoes.intervalo("Dia")
     data_inicio = f"DATE({cfg.inicio.year},{cfg.inicio.month},{cfg.inicio.day})"
     janela = lambda r: f'{datas},">="&$B{r},{datas},"<"&$C{r}+1'      # leituras entre Início e Fim
@@ -83,6 +88,19 @@ def _colunas(semanal: bool, cfg: Config, medicoes: FolhaMedicoes, manuais: Folha
                                  ("Pescoço (cm)", "pescoco_cm")):
             formato = VARIACAO_1 if "Variação" in cabecalho else "0.0"
             colunas.append(Coluna(cabecalho, da_semana(cabecalho), formato, lambda p, k=chave: p.manuais[k], laranja))
+        # Derivadas das medidas com fita, na mesma linha (letras calculadas a partir da posição das colunas).
+        letra = lambda cabecalho: get_column_letter([c.cabecalho for c in colunas].index(cabecalho) + 1)
+        cintura, pescoco = letra("Cintura (cm)"), letra("Pescoço (cm)")
+        if altura:
+            racio = lambda r, i, p: f'=IF({cintura}{r}="","",{cintura}{r}/{altura!r})'
+            fita = lambda r, i, p: (f'=IF(OR({cintura}{r}="",{pescoco}{r}=""),"",IF({cintura}{r}<={pescoco}{r},"",'
+                                    f"495/(1.0324-0.19077*LOG10({cintura}{r}-{pescoco}{r})"
+                                    f"+0.15456*LOG10({altura!r}))-450))")
+        else:
+            racio = fita = lambda r, i, p: '=""'
+        colunas.append(Coluna(CINTURA_ALTURA, racio, "0.000", lambda p: p.manuais["cintura_altura"], laranja))
+        if cfg.sexo == "masculino":
+            colunas.append(Coluna(GORDURA_FITA, fita, "0.0", lambda p: p.manuais["gordura_fita_percentagem"], laranja))
     else:
         def do_mes(cabecalho):
             valores, datas_m = manuais.intervalo(cabecalho), manuais.intervalo("Data da medição")
@@ -98,9 +116,11 @@ def _colunas(semanal: bool, cfg: Config, medicoes: FolhaMedicoes, manuais: Folha
 
 
 def construir(ws, periodos: list[Periodo], semanal: bool, cfg: Config, medicoes: FolhaMedicoes,
-              manuais: FolhaManuais, atualizado: str, esperados: list[Esperado]) -> None:
+              manuais: FolhaManuais, atualizado: str, esperados: list[Esperado],
+              altura: float | None = None) -> dict[str, str]:
+    """Devolve, por cabeçalho, a referência absoluta à coluna desta folha (para o Painel)."""
     nome = "Resumo Semanal" if semanal else "Resumo Mensal"
-    colunas = _colunas(semanal, cfg, medicoes, manuais)
+    colunas = _colunas(semanal, cfg, medicoes, manuais, altura)
     ultima = len(periodos) + PRIMEIRA - 1
     fim = get_column_letter(len(colunas))
     estilos.titulo(ws, "Resumo semanal (domingo a sábado)" if semanal else "Resumo mensal", len(colunas),
@@ -128,6 +148,12 @@ def construir(ws, periodos: list[Periodo], semanal: bool, cfg: Config, medicoes:
     estilos.tabela(ws, "tblResumoSemanal" if semanal else "tblResumoMensal", f"A{PRIMEIRA - 1}:{fim}{ultima}")
     estilos.larguras(ws, [c.largura for c in colunas])
     ws.freeze_panes = f"B{PRIMEIRA}"
-    texto = NOTA + (" Cintura: diferença face à medição anterior disponível." if semanal else
+    texto = NOTA + (" Cintura: diferença face à medição anterior disponível. Cintura ÷ altura: abaixo de 0,5 é a "
+                    "referência habitual. Gordura pela fita (se o sexo estiver em config.json): método da Marinha "
+                    "dos EUA, uma estimativa independente da balança." if semanal else
                     " Cintura e pescoço: média das medições manuais com data nesse mês.")
     estilos.nota(ws, f"B{ultima + 2}", f"{get_column_letter(min(len(colunas), 15))}{ultima + 2}", texto)
+    if semanal:
+        ws.row_dimensions[ultima + 2].height = 42
+    return {c.cabecalho: estilos.intervalo(nome, get_column_letter(j), PRIMEIRA, ultima)
+            for j, c in enumerate(colunas, start=1)}

@@ -1,0 +1,812 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/tpereira2005/zepp-life-excel-ia/schema/dados-zepp-life-ia-resumo.schema.json",
+  "title": "Zepp Life: versão compacta dos dados para IA",
+  "description": "Versão compacta de dados-zepp-life-ia.json: os mesmos indicadores, fases, qualidade dos dados e resumos, com as tabelas em formato {colunas, linhas} e só as leituras dos últimos 28 dias.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "versao_esquema",
+    "metadados",
+    "convencoes",
+    "protocolo_pesagem",
+    "contexto",
+    "dicionario_metricas",
+    "indicadores",
+    "fases",
+    "qualidade_dados",
+    "medidas_manuais",
+    "resumos_semanais",
+    "resumos_mensais",
+    "medicoes_recentes"
+  ],
+  "$defs": {
+    "data": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "data_ou_null": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/data"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "hora_local": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}$"
+    },
+    "hora_utc": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "numero": {
+      "type": "number"
+    },
+    "numero_ou_null": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "inteiro_ou_null": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "lista_numeros_ou_null": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "indicador": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "media_7d_inicial",
+        "media_7d_atual",
+        "variacao_desde_inicio",
+        "ultima_leitura",
+        "ritmo_por_semana_ultimas_4_semanas",
+        "media_7d_no_minimo_do_peso",
+        "variacao_desde_minimo_do_peso",
+        "minimo_media_7d",
+        "maximo_media_7d"
+      ],
+      "properties": {
+        "media_7d_inicial": {
+          "$ref": "#/$defs/numero"
+        },
+        "media_7d_atual": {
+          "$ref": "#/$defs/numero"
+        },
+        "variacao_desde_inicio": {
+          "$ref": "#/$defs/numero"
+        },
+        "ultima_leitura": {
+          "$ref": "#/$defs/numero"
+        },
+        "ritmo_por_semana_ultimas_4_semanas": {
+          "$ref": "#/$defs/numero_ou_null"
+        },
+        "media_7d_no_minimo_do_peso": {
+          "$ref": "#/$defs/numero_ou_null"
+        },
+        "variacao_desde_minimo_do_peso": {
+          "$ref": "#/$defs/numero_ou_null"
+        },
+        "minimo_media_7d": {
+          "$ref": "#/$defs/extremo_ou_null"
+        },
+        "maximo_media_7d": {
+          "$ref": "#/$defs/extremo_ou_null"
+        }
+      }
+    },
+    "indicador_manual": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "primeira",
+            "data_primeira",
+            "ultima",
+            "data_ultima",
+            "variacao_desde_inicio",
+            "medicoes",
+            "minima",
+            "data_minima",
+            "variacao_desde_minima"
+          ],
+          "properties": {
+            "primeira": {
+              "$ref": "#/$defs/numero"
+            },
+            "data_primeira": {
+              "$ref": "#/$defs/data"
+            },
+            "ultima": {
+              "$ref": "#/$defs/numero"
+            },
+            "data_ultima": {
+              "$ref": "#/$defs/data"
+            },
+            "variacao_desde_inicio": {
+              "$ref": "#/$defs/numero"
+            },
+            "medicoes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "minima": {
+              "$ref": "#/$defs/numero"
+            },
+            "data_minima": {
+              "$ref": "#/$defs/data"
+            },
+            "variacao_desde_minima": {
+              "$ref": "#/$defs/numero"
+            }
+          }
+        }
+      ]
+    },
+    "hora_local_ou_null": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/hora_local"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "texto_ou_null": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "extremo_ou_null": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "valor",
+            "data_hora_local"
+          ],
+          "properties": {
+            "valor": {
+              "$ref": "#/$defs/numero"
+            },
+            "data_hora_local": {
+              "$ref": "#/$defs/hora_local"
+            }
+          }
+        }
+      ]
+    },
+    "composicao_ou_null": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "variacao_peso_kg",
+            "variacao_massa_gorda_kg",
+            "variacao_massa_magra_kg",
+            "fracao_massa_gorda"
+          ],
+          "properties": {
+            "variacao_peso_kg": {
+              "$ref": "#/$defs/numero"
+            },
+            "variacao_massa_gorda_kg": {
+              "$ref": "#/$defs/numero"
+            },
+            "variacao_massa_magra_kg": {
+              "$ref": "#/$defs/numero"
+            },
+            "fracao_massa_gorda": {
+              "$ref": "#/$defs/numero_ou_null"
+            }
+          }
+        }
+      ]
+    },
+    "fase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nome",
+        "objetivo",
+        "inicio",
+        "fim",
+        "dias",
+        "leituras",
+        "ultima_leitura_local",
+        "peso_kg",
+        "gordura_corporal_percentagem",
+        "massa_gorda_kg",
+        "massa_magra_kg",
+        "ritmo_peso_kg_por_semana",
+        "cintura_cm"
+      ],
+      "properties": {
+        "nome": {
+          "type": "string"
+        },
+        "objetivo": {
+          "$ref": "#/$defs/texto_ou_null"
+        },
+        "inicio": {
+          "$ref": "#/$defs/data"
+        },
+        "fim": {
+          "$ref": "#/$defs/data"
+        },
+        "dias": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "leituras": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ultima_leitura_local": {
+          "$ref": "#/$defs/hora_local_ou_null"
+        },
+        "peso_kg": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "media_7d_inicial",
+            "media_7d_final",
+            "variacao"
+          ],
+          "properties": {
+            "media_7d_inicial": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "media_7d_final": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "variacao": {
+              "$ref": "#/$defs/numero_ou_null"
+            }
+          }
+        },
+        "gordura_corporal_percentagem": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "media_7d_inicial",
+            "media_7d_final",
+            "variacao"
+          ],
+          "properties": {
+            "media_7d_inicial": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "media_7d_final": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "variacao": {
+              "$ref": "#/$defs/numero_ou_null"
+            }
+          }
+        },
+        "massa_gorda_kg": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "media_7d_inicial",
+            "media_7d_final",
+            "variacao"
+          ],
+          "properties": {
+            "media_7d_inicial": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "media_7d_final": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "variacao": {
+              "$ref": "#/$defs/numero_ou_null"
+            }
+          }
+        },
+        "massa_magra_kg": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "media_7d_inicial",
+            "media_7d_final",
+            "variacao"
+          ],
+          "properties": {
+            "media_7d_inicial": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "media_7d_final": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "variacao": {
+              "$ref": "#/$defs/numero_ou_null"
+            }
+          }
+        },
+        "ritmo_peso_kg_por_semana": {
+          "$ref": "#/$defs/numero_ou_null"
+        },
+        "cintura_cm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "primeira",
+            "ultima",
+            "variacao"
+          ],
+          "properties": {
+            "primeira": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "ultima": {
+              "$ref": "#/$defs/numero_ou_null"
+            },
+            "variacao": {
+              "$ref": "#/$defs/numero_ou_null"
+            }
+          }
+        }
+      }
+    }
+  },
+  "properties": {
+    "versao_esquema": {
+      "const": "1.0.0"
+    },
+    "metadados": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gerado_em_utc",
+        "gerador",
+        "fuso_horario",
+        "inicio_transformacao",
+        "ultima_medicao_corporal_local",
+        "ficheiro_completo",
+        "conteudo",
+        "leituras_no_ficheiro_completo",
+        "privacidade"
+      ],
+      "properties": {
+        "gerado_em_utc": {
+          "$ref": "#/$defs/hora_utc"
+        },
+        "gerador": {
+          "type": "string"
+        },
+        "fuso_horario": {
+          "type": "string"
+        },
+        "inicio_transformacao": {
+          "$ref": "#/$defs/data"
+        },
+        "ultima_medicao_corporal_local": {
+          "$ref": "#/$defs/hora_local"
+        },
+        "ficheiro_completo": {
+          "type": "string"
+        },
+        "conteudo": {
+          "type": "string"
+        },
+        "leituras_no_ficheiro_completo": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "privacidade": {
+          "type": "string"
+        }
+      }
+    },
+    "convencoes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "protocolo_pesagem": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "contexto": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_referencia",
+        "altura_cm",
+        "sexo",
+        "ano_nascimento",
+        "idade_aproximada_anos",
+        "objetivo"
+      ],
+      "properties": {
+        "data_referencia": {
+          "$ref": "#/$defs/data"
+        },
+        "altura_cm": {
+          "$ref": "#/$defs/numero_ou_null"
+        },
+        "sexo": {
+          "enum": [
+            "masculino",
+            "feminino",
+            null
+          ]
+        },
+        "ano_nascimento": {
+          "$ref": "#/$defs/inteiro_ou_null"
+        },
+        "idade_aproximada_anos": {
+          "$ref": "#/$defs/inteiro_ou_null"
+        },
+        "objetivo": {
+          "$ref": "#/$defs/texto_ou_null"
+        }
+      }
+    },
+    "dicionario_metricas": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "unidade",
+          "significado",
+          "origem"
+        ],
+        "properties": {
+          "unidade": {
+            "type": "string"
+          },
+          "significado": {
+            "type": "string"
+          },
+          "origem": {
+            "enum": [
+              "balança",
+              "aplicação",
+              "derivada",
+              "manual"
+            ]
+          }
+        }
+      }
+    },
+    "indicadores": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "descricao",
+        "peso_kg",
+        "gordura_corporal_percentagem",
+        "massa_muscular_kg",
+        "cintura_cm",
+        "pescoco_cm",
+        "massa_gorda_kg",
+        "massa_magra_kg",
+        "gordura_fita_percentagem",
+        "cintura_altura",
+        "composicao_da_variacao"
+      ],
+      "properties": {
+        "descricao": {
+          "type": "string"
+        },
+        "peso_kg": {
+          "$ref": "#/$defs/indicador"
+        },
+        "gordura_corporal_percentagem": {
+          "$ref": "#/$defs/indicador"
+        },
+        "massa_muscular_kg": {
+          "$ref": "#/$defs/indicador"
+        },
+        "cintura_cm": {
+          "$ref": "#/$defs/indicador_manual"
+        },
+        "pescoco_cm": {
+          "$ref": "#/$defs/indicador_manual"
+        },
+        "massa_gorda_kg": {
+          "$ref": "#/$defs/indicador"
+        },
+        "massa_magra_kg": {
+          "$ref": "#/$defs/indicador"
+        },
+        "gordura_fita_percentagem": {
+          "$ref": "#/$defs/indicador_manual"
+        },
+        "cintura_altura": {
+          "$ref": "#/$defs/numero_ou_null"
+        },
+        "composicao_da_variacao": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "desde_inicio",
+            "desde_minimo_do_peso",
+            "data_minimo_do_peso_local"
+          ],
+          "properties": {
+            "desde_inicio": {
+              "$ref": "#/$defs/composicao_ou_null"
+            },
+            "desde_minimo_do_peso": {
+              "$ref": "#/$defs/composicao_ou_null"
+            },
+            "data_minimo_do_peso_local": {
+              "$ref": "#/$defs/hora_local_ou_null"
+            }
+          }
+        }
+      }
+    },
+    "fases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/fase"
+      }
+    },
+    "qualidade_dados": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dias_desde_ultima_leitura",
+        "dias_do_periodo",
+        "dias_com_leitura",
+        "dias_com_varias_leituras",
+        "maior_intervalo_sem_leituras_dias",
+        "cobertura_metricas",
+        "medidas_manuais",
+        "criterio_leituras_atipicas",
+        "leituras_atipicas"
+      ],
+      "properties": {
+        "dias_desde_ultima_leitura": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dias_do_periodo": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dias_com_leitura": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dias_com_varias_leituras": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maior_intervalo_sem_leituras_dias": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cobertura_metricas": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "medidas_manuais": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "completa",
+            "incompleta",
+            "sem_medicao",
+            "por_preencher"
+          ],
+          "properties": {
+            "completa": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "incompleta": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sem_medicao": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "por_preencher": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "criterio_leituras_atipicas": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "descricao",
+            "desvio_absoluto_maximo",
+            "desvio_relativo_maximo"
+          ],
+          "properties": {
+            "descricao": {
+              "type": "string"
+            },
+            "desvio_absoluto_maximo": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "desvio_relativo_maximo": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "leituras_atipicas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id_medicao",
+              "data_hora_local",
+              "motivos"
+            ],
+            "properties": {
+              "id_medicao": {
+                "type": "integer"
+              },
+              "data_hora_local": {
+                "$ref": "#/$defs/hora_local"
+              },
+              "motivos": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "medidas_manuais": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "colunas",
+        "linhas"
+      ],
+      "properties": {
+        "colunas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "linhas": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          }
+        }
+      }
+    },
+    "resumos_semanais": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "colunas",
+        "linhas"
+      ],
+      "properties": {
+        "colunas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "linhas": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          }
+        }
+      }
+    },
+    "resumos_mensais": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "colunas",
+        "linhas"
+      ],
+      "properties": {
+        "colunas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "linhas": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          }
+        }
+      }
+    },
+    "medicoes_recentes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dias",
+        "colunas",
+        "linhas"
+      ],
+      "properties": {
+        "dias": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "colunas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "linhas": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,29 +1,32 @@
-"""Folha "Medições Corporais": uma linha por leitura aceite, com fórmulas de massa gorda e médias de 7 dias."""
+"""Folha "Medições Corporais": uma linha por leitura aceite, com fórmulas de massa gorda, massa magra e médias de 7 dias."""
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 from openpyxl.utils import get_column_letter
 
-from ..metricas import COLUNAS_MEDICOES, MEDIAS_MOVEIS, POR_CAMPO
+from ..metricas import COLUNAS_MEDICOES, MEDIAS_MOVEIS, POR_CAMPO, RITMO_DIAS
 from ..resumos import Calculos
 from ..verificacao import Esperado
 from . import estilos
 
 NOME = "Medições Corporais"
 PRIMEIRA = 4   # primeira linha de dados
+DIAS_RITMO = f"Dias até à última ({RITMO_DIAS} d)"
 
-# (cabeçalho, largura, formato). "Dia" e "Instante UTC" ficam ocultas: servem as fórmulas.
+# (cabeçalho, largura, formato). As três últimas ficam ocultas: servem as fórmulas das outras folhas.
 COLUNAS = [
     ("Data/hora", 19, "dd/mm/yyyy hh:mm"),
     *[(POR_CAMPO[c].coluna, POR_CAMPO[c].largura, POR_CAMPO[c].formato) for c in COLUNAS_MEDICOES],
     *[(m.coluna, 14, "0.00") for m in MEDIAS_MOVEIS],
+    # Dias até à última leitura (≤ 0), só nos últimos 28 dias: é o eixo X do "ritmo recente" (SLOPE no Painel).
+    (DIAS_RITMO, 14, "0.00"),
     ("Dia", 11, "dd/mm/yyyy"),
     # Instante UTC: identifica a última pesagem mesmo quando duas têm a mesma hora local
     # (mudança de hora de outubro) e mesmo que a tabela seja reordenada no Excel.
     ("Instante UTC", 19, "dd/mm/yyyy hh:mm:ss"),
 ]
-OCULTAS = ("Dia", "Instante UTC")
+OCULTAS = (DIAS_RITMO, "Dia", "Instante UTC")
 LETRA = {nome: get_column_letter(i) for i, (nome, _, _) in enumerate(COLUNAS, start=1)}
 
 
@@ -43,23 +46,29 @@ def construir(ws, calc: Calculos, inicio_txt: str, atualizado: str, esperados: l
     leituras = calc.leituras
     ultima = len(leituras) + PRIMEIRA - 1
     estilos.titulo(ws, f"Medições corporais completas desde {inicio_txt}", len(COLUNAS),
-                   f"{len(leituras)} leituras aceites · {atualizado} · fórmulas: massa gorda e médias móveis de 7 dias")
+                   f"{len(leituras)} leituras aceites · {atualizado} · fórmulas: massa gorda, massa magra e "
+                   "médias móveis de 7 dias")
     estilos.cabecalho(ws, PRIMEIRA - 1, [nome for nome, _, _ in COLUNAS])
     data, peso, gordura = LETRA["Data/hora"], LETRA[POR_CAMPO["Weight"].coluna], LETRA[POR_CAMPO["BodyFat"].coluna]
-    gorda = LETRA[POR_CAMPO["massa_gorda"].coluna]
+    gorda, magra = LETRA[POR_CAMPO["massa_gorda"].coluna], LETRA[POR_CAMPO["massa_magra"].coluna]
     datas = f"${data}${PRIMEIRA}:${data}${ultima}"
-    for r, (lt, moveis) in enumerate(zip(leituras, calc.moveis, strict=True), start=PRIMEIRA):
+    for r, (lt, moveis, dias) in enumerate(zip(leituras, calc.moveis, calc.dias_ritmo, strict=True), start=PRIMEIRA):
         ws[f"{data}{r}"] = lt.local
         for campo in COLUNAS_MEDICOES:
             if POR_CAMPO[campo].da_exportacao:
                 ws[f"{LETRA[POR_CAMPO[campo].coluna]}{r}"] = lt[campo]
         ws[f"{gorda}{r}"] = f'=IF({gordura}{r}="","",{peso}{r}*{gordura}{r}/100)'
+        ws[f"{magra}{r}"] = f'=IF({gordura}{r}="","",{peso}{r}-{gorda}{r})'
         esperados.append(Esperado(NOME, f"{gorda}{r}", lt.massa_gorda, "massa gorda"))
+        esperados.append(Esperado(NOME, f"{magra}{r}", lt.massa_magra, "massa magra"))
         for m in MEDIAS_MOVEIS:
             origem, destino = LETRA[POR_CAMPO[m.campo].coluna], LETRA[m.coluna]
-            ws[f"{destino}{r}"] = (f'=AVERAGEIFS(${origem}${PRIMEIRA}:${origem}${ultima},{datas},'
-                                   f'">"&${data}{r}-7,{datas},"<="&${data}{r})')
+            ws[f"{destino}{r}"] = (f"=AVERAGEIFS(${origem}${PRIMEIRA}:${origem}${ultima},"
+                                   f"{datas},{estilos.depois_de(f'${data}{r}-7')},{datas},{estilos.ate(f'${data}{r}')})")
             esperados.append(Esperado(NOME, f"{destino}{r}", moveis[m.campo], m.coluna))
+        ws[f"{LETRA[DIAS_RITMO]}{r}"] = (f'=IF(${data}{r}>MAX({datas})-{RITMO_DIAS}+{estilos.MEIO_SEGUNDO},'
+                                         f'${data}{r}-MAX({datas}),"")')
+        esperados.append(Esperado(NOME, f"{LETRA[DIAS_RITMO]}{r}", dias, DIAS_RITMO))
         ws[f"{LETRA['Dia']}{r}"] = f"=INT({data}{r})"
         ws[f"{LETRA['Instante UTC']}{r}"] = lt.instante_utc.replace(tzinfo=None)
     for i, (_, largura, formato) in enumerate(COLUNAS, start=1):

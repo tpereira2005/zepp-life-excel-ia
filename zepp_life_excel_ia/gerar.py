@@ -20,13 +20,22 @@ class Resultado:
     estado_excel: str            # "verificado no Excel …", "nao_verificado" ou "indisponivel"
 
 
-def _medidas_manuais(cfg, existente: Path | None, inicio: date, ate: date) -> tuple[list[medidas.Semana], int]:
+def _medidas_manuais(cfg, existente: Path | None, copia: Path | None, inicio: date,
+                     ate: date) -> tuple[list[medidas.Semana], int]:
+    """Excel atual > cópia de segurança (só se o Excel não existir) > CSV inicial."""
     existentes = {}
     if existente and existente.exists():
         try:
             existentes = medidas.ler_existentes(existente)
         except Exception as erro:
             raise RuntimeError(f"Não foi possível preservar as medidas manuais: {erro}") from erro
+    elif copia and copia.exists():
+        try:
+            existentes = medidas.ler_copia(copia)
+        except Exception as erro:
+            raise RuntimeError(f"Não foi possível ler a cópia das medidas manuais: {erro}") from erro
+        print(f"Aviso: o Excel anterior não existe; {len(existentes)} semanas de medidas manuais repostas "
+              f"a partir de {copia.name}.")
     csv = {}
     if cfg.csv_medidas_iniciais and cfg.csv_medidas_iniciais.exists():
         csv = medidas.ler_csv(cfg.csv_medidas_iniciais)
@@ -52,16 +61,20 @@ def _verificar_no_excel(caminho: Path, esperados: list[verificacao.Esperado], gr
 
 def gerar(origem: Path, excel_saida: Path, json_saida: Path, *, existente: Path | None = None,
           config: Path | None = None, hoje: date | None = None, verificar_excel: bool = True,
-          graficos: Path | None = None, agora: datetime | None = None) -> Resultado:
+          graficos: Path | None = None, agora: datetime | None = None, json_resumo: Path | None = None,
+          copia_manuais: Path | None = None, guardar_copia_manuais: Path | None = None) -> Resultado:
     """Lê a exportação e as medidas manuais, calcula tudo uma vez, escreve o Excel, confirma-o no
-    Microsoft Excel (se pedido e disponível) e escreve o JSON com o hash do Excel."""
+    Microsoft Excel (se pedido e disponível) e escreve o JSON com o hash do Excel.
+
+    json_resumo: também escreve a versão compacta do JSON. copia_manuais: cópia CSV usada se o Excel
+    anterior não existir. guardar_copia_manuais: onde escrever a cópia CSV atualizada."""
     cfg = configuracao.carregar(config)
     agora = agora or datetime.now(cfg.fuso)
     hoje = hoje or agora.date()
     selecao = selecionar(exportacao.carregar(origem), cfg)
     ate = max(max(lt.local for lt in selecao.aceites).date(), hoje)
-    semanas, preservadas = _medidas_manuais(cfg, existente, cfg.inicio, ate)
-    calc = resumos.calcular(cfg, selecao, semanas, ate)
+    semanas, preservadas = _medidas_manuais(cfg, existente, copia_manuais, cfg.inicio, ate)
+    calc = resumos.calcular(cfg, selecao, semanas, ate, hoje)
 
     excel_saida.parent.mkdir(parents=True, exist_ok=True)
     esperados = excel.construir(excel_saida, calc, agora)
@@ -71,6 +84,15 @@ def gerar(origem: Path, excel_saida: Path, json_saida: Path, *, existente: Path 
     dados = ia_json.construir(calc, excel_saida, agora)
     json_saida.write_text(ia_json.serializar(dados), encoding="utf-8")
     print(f"JSON: {json_saida}")
+    if json_resumo:
+        json_resumo.write_text(ia_json.serializar_resumo(ia_json.construir_resumo(dados, json_saida.name)),
+                               encoding="utf-8")
+        print(f"JSON compacto: {json_resumo}")
+    if guardar_copia_manuais:
+        medidas.escrever_copia(semanas, guardar_copia_manuais)
+    atraso = calc.qualidade.dias_desde_ultima_leitura
+    if atraso > 3:
+        print(f"Aviso: a última leitura tem {atraso} dias; os indicadores atuais referem-se a essa data.")
     c = selecao.contagens
     print(f"LEITURAS={c['aceites']};EXCLUIDAS={len(selecao.excluidas)};SEMANAS={len(semanas)};"
           f"MESES={len(calc.mensais)};PRESERVADAS={preservadas};EXCEL={estado}")

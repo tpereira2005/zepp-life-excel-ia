@@ -48,7 +48,10 @@ def test_linha_de_comandos(tmp_path, capsys):
     nova, anterior = tmp_path / "nova.json", tmp_path / "anterior.json"
     nova.write_text(json.dumps(_registos(3)), encoding="utf-8")
     anterior.write_text(json.dumps(_registos(4)), encoding="utf-8")
-    assert main(["validar-exportacao", "--nova", str(nova), "--anterior", str(anterior)]) == 1
+    # Código 2: o único problema são pesagens desaparecidas (o atualizador pode perguntar se são aceites).
+    assert main(["validar-exportacao", "--nova", str(nova), "--anterior", str(anterior)]) == 2
     assert "ERRO: A nova exportação perdeu 1 pesagem" in capsys.readouterr().err
     assert main(["validar-exportacao", "--nova", str(nova), "--anterior", str(anterior), "--permitir-remocoes"]) == 0
     assert main(["validar-exportacao", "--nova", str(nova), "--anterior", str(tmp_path / "nao-existe.json")]) == 0
+    nova.write_text("[]", encoding="utf-8")
+    assert main(["validar-exportacao", "--nova", str(nova), "--anterior", str(anterior)]) == 1
