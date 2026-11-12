@@ -11,6 +11,10 @@ class ExportacaoInvalida(ValueError):
     pass
 
 
+class PesagensRemovidas(ExportacaoInvalida):
+    """O único problema da nova exportação é faltarem pesagens que existiam na anterior."""
+
+
 def carregar(caminho: Path) -> list[dict]:
     dados = json.loads(Path(caminho).read_text(encoding="utf-8-sig"))
     if not isinstance(dados, list) or not dados:
@@ -53,7 +57,7 @@ def validar(nova: list[dict], anterior: list[dict] | None = None, permitir_remoc
     if perdidas:
         if not permitir_remocoes:
             exemplos = ", ".join(r["Date"] for r in perdidas[:5])
-            raise ExportacaoInvalida(
+            raise PesagensRemovidas(
                 f"A nova exportação perdeu {len(perdidas)} pesagem(ns) anterior(es) ({exemplos}). "
                 "Atualização interrompida. Se as apagou de propósito na Zepp Life, execute o atualizador "
                 "com -PermitirRemocoes.")

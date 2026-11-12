@@ -13,7 +13,7 @@ Antes de qualquer cálculo, `python -m zepp_life_excel_ia validar-exportacao` (c
 - estiver vazia;
 - algum registo não tiver data com fuso horário ou peso positivo;
 - houver dois registos no mesmo instante UTC;
-- faltar alguma pesagem da descarga anterior (comparação por instante UTC). Com `-PermitirRemocoes` isto passa a aviso.
+- faltar alguma pesagem da descarga anterior (comparação por instante UTC). Neste caso (código de saída 2) o atualizador mostra as pesagens em falta e pergunta; só continua se o utilizador escrever `SIM` ou tiver usado `-PermitirRemocoes`.
 
 Uma descarga recusada não substitui nada.
 
@@ -40,6 +40,12 @@ Cada pesagem excluída desde o início aparece, com o motivo, na folha *Critéri
 
 Instantes repetidos (mesmo instante UTC) interrompem a atualização. Duas pesagens à mesma hora local na mudança de hora de outubro são **distintas** (desvios `+01:00` e `+00:00`).
 
+## Leituras atípicas
+
+Uma leitura aceite é **assinalada** como atípica quando se afasta da mediana das outras leituras aceites a ±7 dias (pelo menos 4) mais do que: 1,5 kg no peso, 1,5 pontos percentuais na gordura ou 20 % na impedância. A bioimpedância varia com a hidratação e o contacto dos pés; uma impedância muito diferente das vizinhas costuma explicar um valor de gordura estranho.
+
+As leituras atípicas **não são excluídas nem corrigidas**: continuam nas médias e nos gráficos. Ficam listadas, com o motivo, na folha *Critérios e Qualidade* e em `qualidade_dados.leituras_atipicas` no JSON, para quem analisa poder ter isso em conta. Os limites estão em `metricas.py`.
+
 ## Protocolo de pesagem
 
 Definido em `config.json` e mostrado no Excel e no JSON. A hora do relógio **não** é usada como filtro: se a pesagem é sempre feita ao acordar, uma leitura às 11h num domingo continua a ser comparável.
@@ -54,7 +60,12 @@ Definido em `config.json` e mostrado no Excel e no JSON. A hora do relógio **n�
 | Período parcial | Começa antes do início da transformação ou termina depois da última leitura. |
 | Média móvel de 7 dias | Média das leituras em ]t − 7 dias, t]. |
 | Desde o início (Painel) | Média dos últimos 7 dias − média dos primeiros 7 dias (reduz o ruído diário de uma leitura isolada). |
-| Ritmo recente | (Média dos últimos 7 dias − média da janela de há 3 semanas) / 3, em unidade por semana. |
+| Desde o mínimo (Painel) | Média dos últimos 7 dias − média de 7 dias na data do **mínimo do peso**: a leitura em que a média de 7 dias do peso foi mais baixa, a contar do 7.º dia de leituras (antes disso a "média" tem poucos dias). Em empate, a mais antiga. Massa gorda e massa magra "desde o mínimo" usam essa mesma data. |
+| Ritmo recente | Declive da regressão linear das leituras dos últimos 28 dias, em unidade por semana. Vazio com menos de 8 leituras ou se estas cobrirem menos de 14 dias. (Até à 2.1.0: diferença entre duas médias de 7 dias a dividir por 3.) |
+| Massa magra | Peso − massa gorda. A variação do peso é a soma das variações de massa gorda e de massa magra; a "% da variação que foi gordura" só é indicada se o peso variou pelo menos 0,5 kg. |
+| Cintura ÷ altura | Cintura a dividir pela altura do perfil (a da última leitura). Abaixo de 0,5 é a referência habitual. |
+| Gordura pela fita | Método da Marinha dos EUA para homens: 495 / (1,0324 − 0,19077·log₁₀(cintura − pescoço) + 0,15456·log₁₀(altura)) − 450, em cm. Só com `"sexo": "masculino"`; é uma estimativa, útil para comparar com a da balança. |
+| Fase | Da data de início até à véspera da fase seguinte; a fase em curso termina na última leitura. Inicial = média das leituras dos primeiros 7 dias; final = média dos 7 dias até à última leitura da fase; kg/semana = variação ÷ ((dias − 7) / 7), em fases com 21 dias ou mais. |
 | Última leitura | A de maior instante UTC (coluna oculta *Instante UTC*), não a de maior hora local: na mudança de hora de outubro duas pesagens podem ter a mesma hora local. |
 | Massa gorda | Peso × gordura / 100. |
 | Massa proteica | Derivada pelo leitor: peso × proteína / 100 (não vem da aplicação). |
@@ -65,6 +76,8 @@ Definido em `config.json` e mostrado no Excel e no JSON. A hora do relógio **n�
 - O valor registado é a média de 3 leituras arredondada a 0,1 cm; as leituras individuais, quando escritas nas observações no formato `Leituras — cintura: a - b - c; pescoço: x - y - z`, são extraídas para o JSON.
 - Variação da cintura = medição − medição anterior disponível (semanas sem medição são saltadas).
 - Estados: *Completa*, *Incompleta* (só uma medida), *Sem medição* (sem valores mas com observação, ex. férias), *Por preencher*.
+- Prioridade ao gerar: Excel atual > cópia `privado\medidas-manuais.csv` (só se o Excel não existir) > CSV inicial > semana nova.
+- Mínimo da cintura: a medição mais baixa (a mais antiga, em empate); "desde o mínimo" = última − mínima.
 
 ## Gráficos
 
@@ -80,8 +93,9 @@ Definido em `config.json` e mostrado no Excel e no JSON. A hora do relógio **n�
 | Métricas, campos obrigatórios, limites de plausibilidade, indicadores | `zepp_life_excel_ia/metricas.py` |
 | Validação da descarga | `zepp_life_excel_ia/exportacao.py` |
 | Fuso horário, seleção e motivos de exclusão | `zepp_life_excel_ia/leituras.py` |
-| Semanas, CSV inicial, preservação e validação das medidas manuais | `zepp_life_excel_ia/medidas.py` |
-| Períodos, variações, médias móveis e indicadores | `zepp_life_excel_ia/resumos.py` |
+| Semanas, CSV inicial, cópia de segurança, preservação e validação das medidas manuais | `zepp_life_excel_ia/medidas.py` |
+| Períodos, variações, médias móveis, indicadores, mínimo, ritmo, fita métrica, fases, leituras atípicas | `zepp_life_excel_ia/resumos.py` |
+| Limites das leituras atípicas e do ritmo | `zepp_life_excel_ia/metricas.py` |
 | Amplitudes mínimas e escalas dos gráficos | `zepp_life_excel_ia/excel/folha_painel.py`, `excel/graficos.py` |
 
 Os cálculos em `resumos.py` são a fonte única: o JSON usa-os diretamente e o Excel (com fórmulas nativas) é confirmado contra eles em cada atualização.

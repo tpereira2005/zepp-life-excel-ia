@@ -1,0 +1,445 @@
+{
+ "versao_esquema": "1.0.0",
+ "metadados": {
+  "gerado_em_utc": "2026-11-11T22:47:57Z",
+  "gerador": "zepp-life-excel-ia 2.2.0",
+  "fuso_horario": "Europe/Lisbon",
+  "inicio_transformacao": "2026-01-04",
+  "ultima_medicao_corporal_local": "2026-06-02T07:02:00",
+  "ficheiro_completo": "exemplo-dados-ia.json",
+  "conteudo": "Versão compacta para IA com contexto limitado: indicadores, fases, qualidade dos dados, medidas manuais, resumos semanais e mensais e as leituras individuais dos últimos 28 dias. Todas as leituras e as observações estão no ficheiro completo (esquema 2.1.0).",
+  "leituras_no_ficheiro_completo": 144,
+  "privacidade": "Dados pessoais corporais. Sem credenciais, tokens, email, identificadores de conta ou do dispositivo."
+ },
+ "convencoes": {
+  "datas": "ISO 8601. data_hora_local é a hora de Europe/Lisbon sem desvio; data_hora_utc e desvio_utc identificam o instante sem ambiguidade (inclusive na mudança de hora).",
+  "semana": "Domingo a sábado, incluindo ambas as datas.",
+  "percentagens": "Escala 0–100: 17.0 significa 17%.",
+  "ausencias": "null significa não disponível, nunca zero.",
+  "agregacoes": "Resumos e indicadores derivam das medições; não são observações adicionais. Não somar conjuntos.",
+  "medias": "Média aritmética das leituras aceites do período (não média de médias diárias).",
+  "variacoes": "Peso e gordura: média do período menos a do período anterior; gordura em pontos percentuais. Cintura: medição menos a medição anterior disponível.",
+  "periodos_parciais": "parcial=true se o período começa antes do início ou termina depois da última leitura.",
+  "arredondamento": "Valores derivados arredondados a 3 casas decimais; valores medidos mantidos como exportados.",
+  "limites": "Composição, idade e pontuação são estimativas da aplicação, não diagnósticos clínicos.",
+  "atualidade": "Os valores 'atuais' referem-se à última leitura, não à data de geração: ver qualidade_dados.dias_desde_ultima_leitura.",
+  "tabelas": "medidas_manuais, resumos_semanais, resumos_mensais e medicoes_recentes estão em formato tabular: 'colunas' dá a ordem dos valores de cada linha de 'linhas'."
+ },
+ "protocolo_pesagem": "Ao acordar, depois de ir à casa de banho.",
+ "contexto": {
+  "data_referencia": "2026-06-02",
+  "altura_cm": 178.0,
+  "sexo": "masculino",
+  "ano_nascimento": 1990,
+  "idade_aproximada_anos": 36,
+  "objetivo": "Perder gordura e depois manter o peso"
+ },
+ "dicionario_metricas": {
+  "peso_kg": {
+   "unidade": "kg",
+   "significado": "Peso medido pela balança",
+   "origem": "balança"
+  },
+  "gordura_corporal_percentagem": {
+   "unidade": "%",
+   "significado": "Estimativa por bioimpedância",
+   "origem": "aplicação"
+  },
+  "agua_corporal_percentagem": {
+   "unidade": "%",
+   "significado": "Estimativa de água corporal",
+   "origem": "aplicação"
+  },
+  "massa_muscular_kg": {
+   "unidade": "kg",
+   "significado": "Estimativa de massa muscular",
+   "origem": "aplicação"
+  },
+  "impedancia_ohm": {
+   "unidade": "Ω",
+   "significado": "Impedância registada pela balança",
+   "origem": "balança"
+  },
+  "massa_gorda_kg": {
+   "unidade": "kg",
+   "significado": "peso_kg × gordura_corporal_percentagem / 100",
+   "origem": "derivada"
+  },
+  "massa_magra_kg": {
+   "unidade": "kg",
+   "significado": "peso_kg − massa_gorda_kg (tudo o que não é gordura: músculo, osso, água, órgãos)",
+   "origem": "derivada"
+  },
+  "peso_media_7d_kg": {
+   "unidade": "kg",
+   "significado": "Média das leituras aceites em ]t − 7 dias, t]",
+   "origem": "derivada"
+  },
+  "gordura_media_7d_percentagem": {
+   "unidade": "%",
+   "significado": "Média móvel de 7 dias da gordura",
+   "origem": "derivada"
+  },
+  "cintura_cm": {
+   "unidade": "cm",
+   "significado": "Circunferência ao nível do umbigo; média de 3 leituras arredondada a 0,1",
+   "origem": "manual"
+  },
+  "pescoco_cm": {
+   "unidade": "cm",
+   "significado": "Circunferência do pescoço; média de 3 leituras arredondada a 0,1",
+   "origem": "manual"
+  },
+  "cintura_altura": {
+   "unidade": "razão",
+   "significado": "cintura_cm / altura do perfil; abaixo de 0,5 é a referência habitual",
+   "origem": "derivada"
+  },
+  "gordura_fita_percentagem": {
+   "unidade": "%",
+   "significado": "Estimativa pelo método da Marinha dos EUA (cintura, pescoço, altura), independente da balança; null se o sexo não estiver configurado como masculino (a fórmula feminina exige a anca)",
+   "origem": "derivada"
+  }
+ },
+ "indicadores": {
+  "descricao": "Média 7 dias inicial = primeiros 7 dias de leituras; atual = últimos 7 dias (até à última leitura). Ritmo = declive da regressão linear das leituras dos últimos 28 dias, por semana (null com menos de 8 leituras ou menos de 14 dias). Mínimo do peso = média de 7 dias mais baixa do peso, a contar do 7.º dia de leituras; media_7d_no_minimo_do_peso é a média de 7 dias de cada métrica nessa data. minimo_media_7d e maximo_media_7d são os extremos da própria métrica (null nas métricas sem média móvel). composicao_da_variacao reparte a variação do peso em massa gorda e massa magra (fracao_massa_gorda é null se o peso variou menos de 0,5 kg).",
+  "peso_kg": {
+   "media_7d_inicial": 83.88,
+   "media_7d_atual": 80.021,
+   "variacao_desde_inicio": -3.859,
+   "ultima_leitura": 79.64,
+   "ritmo_por_semana_ultimas_4_semanas": 0.103,
+   "media_7d_no_minimo_do_peso": 78.902,
+   "variacao_desde_minimo_do_peso": 1.12,
+   "minimo_media_7d": {
+    "valor": 78.902,
+    "data_hora_local": "2026-05-02T10:59:00"
+   },
+   "maximo_media_7d": {
+    "valor": 83.88,
+    "data_hora_local": "2026-01-11T10:10:00"
+   }
+  },
+  "gordura_corporal_percentagem": {
+   "media_7d_inicial": 24.957,
+   "media_7d_atual": 21.814,
+   "variacao_desde_inicio": -3.143,
+   "ultima_leitura": 22.4,
+   "ritmo_por_semana_ultimas_4_semanas": 0.005,
+   "media_7d_no_minimo_do_peso": 21.833,
+   "variacao_desde_minimo_do_peso": -0.019,
+   "minimo_media_7d": {
+    "valor": 21.317,
+    "data_hora_local": "2026-04-22T07:16:00"
+   },
+   "maximo_media_7d": {
+    "valor": 24.957,
+    "data_hora_local": "2026-01-11T10:10:00"
+   }
+  },
+  "massa_muscular_kg": {
+   "media_7d_inicial": 59.46,
+   "media_7d_atual": 59.213,
+   "variacao_desde_inicio": -0.247,
+   "ultima_leitura": 59.16,
+   "ritmo_por_semana_ultimas_4_semanas": 0.022,
+   "media_7d_no_minimo_do_peso": 59.087,
+   "variacao_desde_minimo_do_peso": 0.126,
+   "minimo_media_7d": {
+    "valor": 58.937,
+    "data_hora_local": "2026-04-20T07:57:00"
+   },
+   "maximo_media_7d": {
+    "valor": 59.617,
+    "data_hora_local": "2026-02-05T07:48:00"
+   }
+  },
+  "massa_gorda_kg": {
+   "media_7d_inicial": 20.934,
+   "media_7d_atual": 17.456,
+   "variacao_desde_inicio": -3.479,
+   "ultima_leitura": 17.839,
+   "ritmo_por_semana_ultimas_4_semanas": 0.027,
+   "media_7d_no_minimo_do_peso": 17.226,
+   "variacao_desde_minimo_do_peso": 0.23,
+   "minimo_media_7d": null,
+   "maximo_media_7d": null
+  },
+  "massa_magra_kg": {
+   "media_7d_inicial": 62.946,
+   "media_7d_atual": 62.566,
+   "variacao_desde_inicio": -0.38,
+   "ultima_leitura": 61.801,
+   "ritmo_por_semana_ultimas_4_semanas": 0.077,
+   "media_7d_no_minimo_do_peso": 61.676,
+   "variacao_desde_minimo_do_peso": 0.89,
+   "minimo_media_7d": null,
+   "maximo_media_7d": null
+  },
+  "cintura_cm": {
+   "primeira": 96.0,
+   "data_primeira": "2026-01-04",
+   "ultima": 84.6,
+   "data_ultima": "2026-05-17",
+   "variacao_desde_inicio": -11.4,
+   "medicoes": 17,
+   "minima": 84.6,
+   "data_minima": "2026-05-17",
+   "variacao_desde_minima": 0.0
+  },
+  "pescoco_cm": {
+   "primeira": 40.0,
+   "data_primeira": "2026-01-04",
+   "ultima": 38.5,
+   "data_ultima": "2026-05-17",
+   "variacao_desde_inicio": -1.5,
+   "medicoes": 17,
+   "minima": 38.5,
+   "data_minima": "2026-05-17",
+   "variacao_desde_minima": 0.0
+  },
+  "gordura_fita_percentagem": {
+   "primeira": 22.904,
+   "data_primeira": "2026-01-04",
+   "ultima": 15.733,
+   "data_ultima": "2026-05-17",
+   "variacao_desde_inicio": -7.171,
+   "medicoes": 17,
+   "minima": 15.733,
+   "data_minima": "2026-05-17",
+   "variacao_desde_minima": 0.0
+  },
+  "cintura_altura": 0.475,
+  "composicao_da_variacao": {
+   "desde_inicio": {
+    "variacao_peso_kg": -3.859,
+    "variacao_massa_gorda_kg": -3.479,
+    "variacao_massa_magra_kg": -0.38,
+    "fracao_massa_gorda": 0.902
+   },
+   "desde_minimo_do_peso": {
+    "variacao_peso_kg": 1.12,
+    "variacao_massa_gorda_kg": 0.23,
+    "variacao_massa_magra_kg": 0.89,
+    "fracao_massa_gorda": 0.205
+   },
+   "data_minimo_do_peso_local": "2026-05-02T10:59:00"
+  }
+ },
+ "fases": [
+  {
+   "nome": "Défice",
+   "objetivo": "Perder cerca de 0,5 kg por semana",
+   "inicio": "2026-01-04",
+   "fim": "2026-04-18",
+   "dias": 105,
+   "leituras": 101,
+   "ultima_leitura_local": "2026-04-18T10:40:00",
+   "peso_kg": {
+    "media_7d_inicial": 83.89,
+    "media_7d_final": 79.326,
+    "variacao": -4.564
+   },
+   "gordura_corporal_percentagem": {
+    "media_7d_inicial": 24.983,
+    "media_7d_final": 21.738,
+    "variacao": -3.246
+   },
+   "massa_gorda_kg": {
+    "media_7d_inicial": 20.959,
+    "media_7d_final": 17.244,
+    "variacao": -3.715
+   },
+   "massa_magra_kg": {
+    "media_7d_inicial": 62.931,
+    "media_7d_final": 62.082,
+    "variacao": -0.849
+   },
+   "ritmo_peso_kg_por_semana": -0.326,
+   "cintura_cm": {
+    "primeira": 96.0,
+    "ultima": 87.6,
+    "variacao": -8.4
+   }
+  },
+  {
+   "nome": "Manutenção",
+   "objetivo": "Estabilizar o peso",
+   "inicio": "2026-04-19",
+   "fim": "2026-06-02",
+   "dias": 45,
+   "leituras": 43,
+   "ultima_leitura_local": "2026-06-02T07:02:00",
+   "peso_kg": {
+    "media_7d_inicial": 79.477,
+    "media_7d_final": 80.021,
+    "variacao": 0.545
+   },
+   "gordura_corporal_percentagem": {
+    "media_7d_inicial": 21.383,
+    "media_7d_final": 21.814,
+    "variacao": 0.431
+   },
+   "massa_gorda_kg": {
+    "media_7d_inicial": 16.995,
+    "media_7d_final": 17.456,
+    "variacao": 0.461
+   },
+   "massa_magra_kg": {
+    "media_7d_inicial": 62.482,
+    "media_7d_final": 62.566,
+    "variacao": 0.084
+   },
+   "ritmo_peso_kg_por_semana": 0.1,
+   "cintura_cm": {
+    "primeira": 87.0,
+    "ultima": 84.6,
+    "variacao": -2.4
+   }
+  }
+ ],
+ "qualidade_dados": {
+  "dias_desde_ultima_leitura": 0,
+  "dias_do_periodo": 150,
+  "dias_com_leitura": 139,
+  "dias_com_varias_leituras": 5,
+  "maior_intervalo_sem_leituras_dias": 1,
+  "cobertura_metricas": {
+   "peso_kg": 144,
+   "altura_cm": 144,
+   "imc": 144,
+   "gordura_corporal_percentagem": 144,
+   "agua_corporal_percentagem": 144,
+   "massa_ossea_kg": 144,
+   "massa_muscular_kg": 144,
+   "proteina_percentagem": 144,
+   "massa_proteica_kg": 144,
+   "gordura_visceral_indice": 144,
+   "metabolismo_basal_kcal_dia": 144,
+   "idade_corporal_anos": 144,
+   "pontuacao_corporal": 144,
+   "classificacao_fisica_codigo": 0,
+   "peso_padrao_kg": 144,
+   "impedancia_ohm": 144,
+   "massa_gorda_kg": 144,
+   "massa_magra_kg": 144
+  },
+  "medidas_manuais": {
+   "completa": 17,
+   "incompleta": 0,
+   "sem_medicao": 1,
+   "por_preencher": 4
+  },
+  "criterio_leituras_atipicas": {
+   "descricao": "Leituras que se afastam da mediana das outras leituras aceites a ±7 dias (mínimo 4 vizinhas). São apenas assinaladas: continuam em medicoes_corporais e nas médias.",
+   "desvio_absoluto_maximo": {
+    "peso_kg": 1.5,
+    "gordura_corporal_percentagem": 1.5
+   },
+   "desvio_relativo_maximo": {
+    "impedancia_ohm": 0.2
+   }
+  },
+  "leituras_atipicas": []
+ },
+ "medidas_manuais": {
+  "colunas": ["semana_inicio","data_medicao","cintura_cm","pescoco_cm","variacao_cintura_cm","cintura_altura","gordura_fita_percentagem","estado"],
+  "linhas": [
+   ["2026-01-04","2026-01-04",96.0,40.0,null,0.539,22.904,"completa"],
+   ["2026-01-11","2026-01-11",95.4,39.9,-0.6,0.536,22.569,"completa"],
+   ["2026-01-18","2026-01-18",94.8,39.9,-0.6,0.533,22.163,"completa"],
+   ["2026-01-25","2026-01-25",94.3,39.8,-0.5,0.53,21.89,"completa"],
+   ["2026-02-01",null,null,null,null,null,null,"sem_medicao"],
+   ["2026-02-08","2026-02-08",93.0,39.6,-1.3,0.522,21.132,"completa"],
+   ["2026-02-15",null,null,null,null,null,null,"por_preencher"],
+   ["2026-02-22",null,null,null,null,null,null,"por_preencher"],
+   ["2026-03-01","2026-03-01",91.3,39.4,-1.7,0.513,20.075,"completa"],
+   ["2026-03-08","2026-03-08",90.6,39.3,-0.7,0.509,19.646,"completa"],
+   ["2026-03-15","2026-03-15",90.0,39.2,-0.6,0.506,19.284,"completa"],
+   ["2026-03-22","2026-03-22",89.5,39.2,-0.5,0.503,18.92,"completa"],
+   ["2026-03-29","2026-03-29",88.8,39.1,-0.7,0.499,18.479,"completa"],
+   ["2026-04-05","2026-04-05",88.2,38.9,-0.6,0.496,18.182,"completa"],
+   ["2026-04-12","2026-04-12",87.6,38.9,-0.6,0.492,17.733,"completa"],
+   ["2026-04-19","2026-04-19",87.0,38.7,-0.6,0.489,17.432,"completa"],
+   ["2026-04-26","2026-04-26",86.4,38.8,-0.6,0.485,16.898,"completa"],
+   ["2026-05-03","2026-05-03",85.7,38.6,-0.7,0.481,16.513,"completa"],
+   ["2026-05-10","2026-05-10",85.1,38.6,-0.6,0.478,16.047,"completa"],
+   ["2026-05-17","2026-05-17",84.6,38.5,-0.5,0.475,15.733,"completa"],
+   ["2026-05-24",null,null,null,null,null,null,"por_preencher"],
+   ["2026-05-31",null,null,null,null,null,null,"por_preencher"]
+  ]
+ },
+ "resumos_semanais": {
+  "colunas": ["rotulo","inicio","fim","leituras","dias_com_medicao","parcial","peso_medio_kg","variacao_peso_kg","gordura_media_percentagem","variacao_gordura_pp","musculo_medio_kg","massa_gorda_media_kg","massa_magra_media_kg","agua_media_percentagem","proteina_media_percentagem","massa_ossea_media_kg","imc_medio","gordura_visceral_media","idade_corporal_media","pontuacao_corporal_media","cintura_cm","variacao_cintura_cm","pescoco_cm","cintura_altura","gordura_fita_percentagem"],
+  "linhas": [
+   ["04/01/2026 - 10/01/2026","2026-01-04","2026-01-10",6,6,false,83.89,null,24.983,null,59.482,20.959,62.931,52.533,19.5,3.1,26.477,9.0,30.0,80.0,96.0,null,40.0,0.539,22.904],
+   ["11/01/2026 - 17/01/2026","2026-01-11","2026-01-17",6,6,false,83.638,-0.252,24.367,-0.617,59.147,20.38,63.258,52.933,19.5,3.1,26.398,9.0,30.0,80.0,95.4,-0.6,39.9,0.536,22.569],
+   ["18/01/2026 - 24/01/2026","2026-01-18","2026-01-24",8,7,false,83.23,-0.408,24.212,-0.154,59.601,20.153,63.077,53.025,19.5,3.1,26.269,9.0,30.0,80.0,94.8,-0.6,39.9,0.533,22.163],
+   ["25/01/2026 - 31/01/2026","2026-01-25","2026-01-31",6,6,false,82.933,-0.297,24.05,-0.162,59.323,19.944,62.989,53.167,19.5,3.1,26.175,9.0,30.0,80.0,94.3,-0.5,39.8,0.53,21.89],
+   ["01/02/2026 - 07/02/2026","2026-02-01","2026-02-07",7,7,false,82.223,-0.71,23.971,-0.079,59.534,19.71,62.513,53.186,19.5,3.1,25.951,9.0,30.0,80.0,null,null,null,null,null],
+   ["08/02/2026 - 14/02/2026","2026-02-08","2026-02-14",6,6,false,82.487,0.264,23.7,-0.271,59.5,19.549,62.938,53.4,19.5,3.1,26.034,9.0,30.0,80.0,93.0,-1.3,39.6,0.522,21.132],
+   ["15/02/2026 - 21/02/2026","2026-02-15","2026-02-21",8,7,false,82.005,-0.482,23.587,-0.113,59.259,19.344,62.661,53.487,19.5,3.1,25.882,9.0,30.0,80.0,null,null,null,null,null],
+   ["22/02/2026 - 28/02/2026","2026-02-22","2026-02-28",7,7,false,81.493,-0.512,23.4,-0.187,59.299,19.069,62.424,53.629,19.5,3.1,25.721,9.0,30.0,80.0,null,null,null,null,null],
+   ["01/03/2026 - 07/03/2026","2026-03-01","2026-03-07",6,6,false,81.435,-0.058,22.9,-0.5,59.158,18.648,62.787,53.967,19.5,3.1,25.702,9.0,30.0,80.0,91.3,-1.7,39.4,0.513,20.075],
+   ["08/03/2026 - 14/03/2026","2026-03-08","2026-03-14",6,6,false,81.13,-0.305,23.067,0.167,59.273,18.714,62.416,53.883,19.5,3.1,25.607,9.0,30.0,80.0,90.6,-0.7,39.3,0.509,19.646],
+   ["15/03/2026 - 21/03/2026","2026-03-15","2026-03-21",7,7,false,80.707,-0.423,22.543,-0.524,59.263,18.194,62.514,54.243,19.5,3.1,25.473,9.0,30.0,80.0,90.0,-0.6,39.2,0.506,19.284],
+   ["22/03/2026 - 28/03/2026","2026-03-22","2026-03-28",7,6,false,80.514,-0.193,22.586,0.043,59.301,18.185,62.329,54.171,19.5,3.1,25.412,9.0,30.0,80.0,89.5,-0.5,39.2,0.503,18.92],
+   ["29/03/2026 - 04/04/2026","2026-03-29","2026-04-04",7,7,false,79.946,-0.569,22.057,-0.529,59.06,17.633,62.313,54.557,19.5,3.1,25.232,9.0,30.0,80.0,88.8,-0.7,39.1,0.499,18.479],
+   ["05/04/2026 - 11/04/2026","2026-04-05","2026-04-11",7,7,false,79.706,-0.24,22.029,-0.029,59.223,17.558,62.147,54.6,19.5,3.1,25.156,9.0,30.0,80.0,88.2,-0.6,38.9,0.496,18.182],
+   ["12/04/2026 - 18/04/2026","2026-04-12","2026-04-18",7,7,false,79.329,-0.377,21.686,-0.343,58.966,17.204,62.125,54.843,19.5,3.1,25.037,9.0,30.0,80.0,87.6,-0.6,38.9,0.492,17.733],
+   ["19/04/2026 - 25/04/2026","2026-04-19","2026-04-25",6,5,false,79.477,0.148,21.383,-0.302,59.212,16.995,62.482,55.017,19.5,3.1,25.084,9.0,30.0,80.0,87.0,-0.6,38.7,0.489,17.432],
+   ["26/04/2026 - 02/05/2026","2026-04-26","2026-05-02",6,6,false,78.902,-0.575,21.833,0.45,59.087,17.226,61.676,54.717,19.5,3.1,24.903,9.0,30.0,80.0,86.4,-0.6,38.8,0.485,16.898],
+   ["03/05/2026 - 09/05/2026","2026-05-03","2026-05-09",7,7,false,79.431,0.53,21.9,0.067,59.037,17.395,62.036,54.671,19.5,3.1,25.07,9.0,30.0,80.0,85.7,-0.7,38.6,0.481,16.513],
+   ["10/05/2026 - 16/05/2026","2026-05-10","2026-05-16",7,7,false,79.739,0.307,21.843,-0.057,59.21,17.418,62.321,54.7,19.5,3.1,25.167,9.0,30.0,80.0,85.1,-0.6,38.6,0.478,16.047],
+   ["17/05/2026 - 23/05/2026","2026-05-17","2026-05-23",7,7,false,79.626,-0.113,22.1,0.257,59.063,17.597,62.029,54.529,19.5,3.1,25.131,9.0,30.0,80.0,84.6,-0.5,38.5,0.475,15.733],
+   ["24/05/2026 - 30/05/2026","2026-05-24","2026-05-30",7,6,false,79.863,0.237,21.7,-0.4,59.279,17.33,62.533,54.814,19.5,3.1,25.206,9.0,30.0,80.0,null,null,null,null,null],
+   ["31/05/2026 - 06/06/2026","2026-05-31","2026-06-06",3,3,true,79.87,0.007,22.133,0.433,59.25,17.678,62.192,54.5,19.5,3.1,25.208,9.0,30.0,80.0,null,null,null,null,null]
+  ]
+ },
+ "resumos_mensais": {
+  "colunas": ["rotulo","inicio","fim","leituras","dias_com_medicao","parcial","peso_medio_kg","variacao_peso_kg","gordura_media_percentagem","variacao_gordura_pp","musculo_medio_kg","massa_gorda_media_kg","massa_magra_media_kg","agua_media_percentagem","proteina_media_percentagem","massa_ossea_media_kg","imc_medio","gordura_visceral_media","idade_corporal_media","pontuacao_corporal_media","cintura_media_cm","pescoco_medio_cm"],
+  "linhas": [
+   ["2026-01","2026-01-01","2026-01-31",26,25,true,83.408,null,24.388,null,59.405,20.343,63.065,52.923,19.5,3.1,26.325,9.0,30.0,80.0,95.125,39.9],
+   ["2026-02","2026-02-01","2026-02-28",28,27,false,82.035,-1.373,23.661,-0.728,59.389,19.411,62.624,53.429,19.5,3.1,25.892,9.0,30.0,80.0,93.0,39.6],
+   ["2026-03","2026-03-01","2026-03-31",29,28,false,80.823,-1.212,22.679,-0.981,59.231,18.331,62.492,54.131,19.5,3.1,25.509,9.0,30.0,80.0,90.04,39.24],
+   ["2026-04","2026-04-01","2026-04-30",28,27,false,79.487,-1.336,21.796,-0.883,59.092,17.325,62.161,54.75,19.5,3.1,25.087,9.0,30.0,80.0,87.3,38.825],
+   ["2026-05","2026-05-01","2026-05-31",31,30,false,79.621,0.134,21.89,0.094,59.171,17.429,62.192,54.674,19.5,3.1,25.13,9.0,30.0,80.0,85.133,38.567],
+   ["2026-06","2026-06-01","2026-06-30",2,2,true,79.775,0.154,22.0,0.11,59.17,17.55,62.225,54.6,19.5,3.1,25.179,9.0,30.0,80.0,null,null]
+  ]
+ },
+ "medicoes_recentes": {
+  "dias": 28,
+  "colunas": ["data_hora_local","peso_kg","gordura_corporal_percentagem","massa_muscular_kg","agua_corporal_percentagem","massa_gorda_kg","massa_magra_kg","peso_media_7d_kg","gordura_media_7d_percentagem","impedancia_ohm"],
+  "linhas": [
+   ["2026-05-05T07:31:00",79.27,21.9,59.47,54.7,17.36,61.91,78.964,21.957,500],
+   ["2026-05-06T07:46:00",79.29,22.0,59.29,54.6,17.444,61.846,79.105,21.833,500],
+   ["2026-05-07T07:53:00",79.33,22.1,58.98,54.5,17.532,61.798,79.137,21.871,500],
+   ["2026-05-08T07:12:00",79.8,21.6,58.59,54.9,17.237,62.563,79.22,21.838,500],
+   ["2026-05-09T10:23:00",79.84,22.0,59.18,54.6,17.565,62.275,79.422,21.887,500],
+   ["2026-05-10T10:48:00",79.44,21.8,59.2,54.7,17.318,62.122,79.441,21.857,500],
+   ["2026-05-11T07:53:00",79.3,21.3,59.51,55.1,16.891,62.409,79.467,21.814,500],
+   ["2026-05-12T07:20:00",80.33,22.0,59.35,54.6,17.673,62.657,79.575,21.837,500],
+   ["2026-05-13T07:56:00",80.19,22.0,58.71,54.6,17.642,62.548,79.747,21.829,500],
+   ["2026-05-14T07:13:00",80.04,21.9,59.05,54.7,17.529,62.511,79.784,21.837,500],
+   ["2026-05-15T07:28:00",79.5,21.7,59.32,54.8,17.252,62.248,79.806,21.814,500],
+   ["2026-05-16T10:35:00",79.37,22.2,59.33,54.4,17.62,61.75,79.739,21.843,500],
+   ["2026-05-17T10:19:00",79.67,22.6,58.98,54.2,18.005,61.665,79.73,21.938,500],
+   ["2026-05-18T07:30:00",79.42,21.6,59.04,54.9,17.155,62.265,79.728,21.913,500],
+   ["2026-05-19T07:10:00",80.1,22.2,59.25,54.5,17.782,62.318,79.828,22.025,500],
+   ["2026-05-20T07:21:00",79.34,22.4,59.13,54.3,17.772,61.568,79.704,22.075,500],
+   ["2026-05-21T07:12:00",79.78,22.2,58.93,54.4,17.711,62.069,79.653,22.1,500],
+   ["2026-05-22T07:51:00",79.69,21.2,58.92,55.1,16.894,62.796,79.624,22.057,500],
+   ["2026-05-23T10:26:00",79.38,22.5,59.19,54.3,17.86,61.519,79.594,22.113,500],
+   ["2026-05-24T10:31:00",80.1,21.8,59.79,54.7,17.462,62.638,79.687,21.986,500],
+   ["2026-05-25T07:32:00",79.25,21.9,59.21,54.7,17.356,61.894,79.663,22.029,500],
+   ["2026-05-25T07:35:00",79.15,21.9,59.21,54.7,17.334,61.816,79.599,22.012,500],
+   ["2026-05-26T07:24:00",79.75,21.7,59.31,54.8,17.306,62.444,79.555,21.95,500],
+   ["2026-05-27T07:54:00",80.26,21.1,59.33,55.2,16.935,63.325,79.67,21.788,500],
+   ["2026-05-28T07:51:00",80.18,21.6,59.21,54.9,17.319,62.861,79.72,21.712,500],
+   ["2026-05-30T10:59:00",80.35,21.9,58.89,54.7,17.597,62.753,79.863,21.7,500],
+   ["2026-05-31T10:14:00",80.06,22.4,59.41,54.3,17.933,62.127,79.888,21.788,500],
+   ["2026-06-01T07:52:00",79.91,21.6,59.18,54.9,17.261,62.649,80.085,21.717,500],
+   ["2026-06-02T07:02:00",79.64,22.4,59.16,54.3,17.839,61.801,80.021,21.814,500]
+  ]
+ }
+}

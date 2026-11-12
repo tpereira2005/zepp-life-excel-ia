@@ -11,6 +11,7 @@ import pytest
 from openpyxl import load_workbook
 
 from zepp_life_excel_ia import gerar, sintetico, verificacao
+from zepp_life_excel_ia.excel import folha_medicoes
 from zepp_life_excel_ia.medidas import ler_existentes
 
 ESQUEMA = json.loads((Path(__file__).resolve().parents[1] / "schema" / "dados-zepp-life-ia.schema.json")
@@ -69,8 +70,12 @@ def test_livro_estrutura_e_graficos(projeto):
     assert wb.sheetnames == FOLHAS
     assert all(ws.sheet_state == "visible" for ws in wb.worksheets)
     assert wb["Medidas Manuais"]["A3"].value == "Semana"
-    assert wb["Medições Corporais"].column_dimensions["Q"].hidden and wb["Medições Corporais"].column_dimensions["R"].hidden
-    lacunas = 0
+    ocultas = {folha_medicoes.LETRA[nome] for nome in folha_medicoes.OCULTAS}
+    assert len(ocultas) == 3
+    assert {letra for letra, d in wb["Medições Corporais"].column_dimensions.items() if d.hidden} == ocultas
+    assert wb["Painel"].column_dimensions["R"].hidden and wb["Painel"].column_dimensions["S"].hidden
+    assert [wb["Painel"][f"B{linha}"].value for linha in (4, 10, 16, 22)] == [
+        "Último peso", "Ritmo recente", "Massa gorda desde o início", "Última cintura"]
     semanas = resultado.calculos.semanas
     medidos = [i for i, s in enumerate(semanas) if s.cintura is not None]
     lacunas = sum(1 for a, b in pairwise(medidos) if b - a > 1)
@@ -144,7 +149,8 @@ def test_ultima_pesagem_na_mudanca_de_hora(projeto):
     assert dados["indicadores"]["peso_kg"]["ultima_leitura"] == 79
     assert dados["metadados"]["ultima_medicao_corporal_utc"] == "2026-10-25T01:30:00Z"
     formula = load_workbook(livro)["Painel"]["B5"].value
-    assert "$R$" in formula and "MATCH(MAX(" in formula      # procura pelo instante UTC, não pela hora local
+    # Procura pelo instante UTC, não pela hora local.
+    assert f"${folha_medicoes.LETRA['Instante UTC']}$" in formula and "MATCH(MAX(" in formula
 
 
 def test_gera_sem_nenhuma_data_manual(projeto):

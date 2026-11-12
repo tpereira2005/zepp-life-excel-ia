@@ -36,12 +36,17 @@ try {
     ConvertTo-SecureString 'utilizador:sessao-ficticia' -AsPlainText -Force | Export-Clixml -LiteralPath (Join-Path $privado 'sessao.clixml')
     $livro = Join-Path $resultados 'analise-historico-zepp-life.xlsx'
     $ia = Join-Path $resultados 'dados-zepp-life-ia.json'
+    $resumo = Join-Path $resultados 'dados-zepp-life-ia-resumo.json'
+    $copiaManuais = Join-Path $dados 'medidas-manuais.csv'
 
     Write-Host '1. Primeira atualização'
     Resposta 100
     $r = Atualizar @()
     Confirmar ($r.Codigo -eq 0) 'termina com sucesso'
     Confirmar ((Test-Path $livro) -and (Test-Path $ia)) 'cria Excel e JSON'
+    Confirmar ((Test-Path $resumo) -and ((Get-Item $resumo).Length -lt (Get-Item $ia).Length / 3)) 'cria o JSON compacto (menos de um terço do completo)'
+    Confirmar ((Get-Content $copiaManuais -TotalCount 1) -like '*Semana*;*Cintura*') 'guarda a cópia CSV das medidas manuais'
+    Confirmar (Test-Path (Join-Path $t 'leitor.cmd.sha256')) 'regista o SHA-256 do leitor na primeira utilização'
     Confirmar (Test-Path (Join-Path $privado 'sessao.clixml')) 'guarda a sessão na pasta privada de teste'
     Confirmar (-not ((Get-Content (Join-Path $privado 'sessao.clixml') -Raw).Contains('token-de-teste'))) 'sessão não fica em texto legível'
     Confirmar (@(Get-ChildItem (Join-Path $dados 'temporario') -Directory -ErrorAction SilentlyContinue).Count -eq 0) 'remove a pasta temporária após sucesso'
@@ -53,7 +58,7 @@ try {
     $r = Atualizar @()
     Confirmar ($r.Codigo -eq 0) 'termina com sucesso'
     $copias = @(Get-ChildItem (Join-Path $dados 'historico') -Directory)
-    Confirmar ($copias.Count -eq 1 -and @(Get-ChildItem $copias[0].FullName).Count -eq 4) 'guarda as 4 versões anteriores em historico'
+    Confirmar ($copias.Count -eq 1 -and @(Get-ChildItem $copias[0].FullName).Count -eq 6) 'guarda as 6 versões anteriores em historico'
 
     Write-Host '3. Exportação que perde pesagens antigas'
     $antes = Hash $livro
@@ -95,7 +100,63 @@ try {
     Confirmar (@(Get-ChildItem (Join-Path $dados 'temporario') -Directory).Count -ge 1) 'guarda a tentativa falhada com o registo'
     Copy-Item (Join-Path $t 'bom.xlsx') $livro -Force
 
-    Write-Host '9. Esquecer conta'
+    Write-Host '9. Falha a meio da substituição repõe o que já tinha sido substituído'
+    $antes = Hash $livro
+    $preso = [IO.File]::Open($ia, 'Open', 'ReadWrite', 'None')
+    try { $r = Atualizar @('-SoExcel') } finally { $preso.Dispose() }
+    Confirmar ($r.Codigo -eq 1 -and $r.Texto -match 'foram repostos') 'falha e avisa que repôs os ficheiros'
+    Confirmar ((Hash $livro) -eq $antes) 'o Excel volta a ser o anterior'
+
+    Write-Host '10. Excel apagado: medidas manuais repostas a partir da cópia CSV'
+    Copy-Item $livro (Join-Path $t 'bom.xlsx') -Force
+    $linhas = @(Get-Content $copiaManuais -Encoding UTF8)
+    $linhas[1] = ($linhas[1] -split ';')[0] + ';' + ($linhas[1] -split ';')[0] + ';91.7;39.9;nota de teste'
+    [IO.File]::WriteAllLines($copiaManuais, $linhas, [Text.UTF8Encoding]::new($true))
+    Remove-Item $livro -Force
+    $r = Atualizar @('-SoExcel')
+    Confirmar ($r.Codigo -eq 0 -and $r.Texto -match 'repostas') 'gera o Excel e avisa que usou a cópia'
+    Confirmar ((Get-Content $ia -Raw -Encoding UTF8) -match '"cintura_cm": 91\.7') 'a medida da cópia aparece no JSON'
+
+    Write-Host '11. Retenção do histórico'
+    $historico = Join-Path $dados 'historico'
+    foreach ($nome in @('2026-01-05_10-00-00-000', '2026-01-20_10-00-00-000', '2026-02-03_10-00-00-000')) {
+        [void](New-Item -ItemType Directory -Path (Join-Path $historico $nome))
+        Set-Content -LiteralPath (Join-Path $historico "$nome\x.txt") -Value 'x'
+    }
+    $recentes = @(Get-ChildItem $historico -Directory | Where-Object { $_.Name -notlike '2026-0[12]-*' }).Count
+    $r = Atualizar @('-SoExcel')
+    $nomes = @(Get-ChildItem $historico -Directory | ForEach-Object Name)
+    Confirmar ($r.Codigo -eq 0 -and $nomes -notcontains '2026-01-05_10-00-00-000') 'apaga a cópia antiga que não é a última do mês'
+    Confirmar ($nomes -contains '2026-01-20_10-00-00-000' -and $nomes -contains '2026-02-03_10-00-00-000') 'mantém a última cópia de cada mês'
+    Confirmar (@($nomes | Where-Object { $_ -notlike '2026-0[12]-*' }).Count -eq $recentes + 1) 'mantém todas as cópias recentes'
+    [void](New-Item -ItemType Directory -Path (Join-Path $historico '2026-01-02_10-00-00-000'))
+    $r = Atualizar @('-SoExcel', '-ManterHistoricoDias', '0')
+    Confirmar (Test-Path (Join-Path $historico '2026-01-02_10-00-00-000')) '-ManterHistoricoDias 0 não apaga nada'
+
+    Write-Host '12. Leitor alterado'
+    # Leitor que recusa a sessão (pedido com Token) e aceita a conta (pedido com Account).
+    Set-Content -LiteralPath (Join-Path $t 'leitor.cmd') -Encoding ASCII -Value "@echo off`r`nfindstr /C:`"Token`" >nul`r`nif not errorlevel 1 exit /b 1`r`ntype `"%~dp0resposta.json`"`r`nexit /b 0"
+    Resposta 110
+    $antes = Hash $livro
+    $r = Atualizar @()
+    Confirmar ($r.Codigo -eq 1 -and $r.Texto -match 'foi alterado') 'recusa um leitor diferente do registado'
+    Confirmar ((Hash $livro) -eq $antes) 'Excel fica inalterado'
+    Remove-Item (Join-Path $t 'leitor.cmd.sha256') -Force
+
+    Write-Host '13. Sessão expirada: usa a palavra-passe guardada'
+    ConvertTo-SecureString '{"Account":"teste@example.invalid","Password":"senha-ficticia"}' -AsPlainText -Force |
+        Export-Clixml -LiteralPath (Join-Path $privado 'conta.clixml')
+    Resposta 112
+    $r = Atualizar @()
+    Confirmar ($r.Codigo -eq 0 -and $r.Texto -match 'A autenticar') 'autentica com a conta guardada e termina com sucesso'
+    Confirmar (-not ($r.Texto -match 'senha-ficticia')) 'a palavra-passe não aparece na saída'
+    Confirmar (-not ((Get-Content (Join-Path $privado 'conta.clixml') -Raw).Contains('senha-ficticia'))) 'conta não fica em texto legível'
+
+    Write-Host '14. Esquecer só a palavra-passe'
+    $r = Atualizar @('-EsquecerPalavraPasse')
+    Confirmar ($r.Codigo -eq 0 -and -not (Test-Path (Join-Path $privado 'conta.clixml')) -and (Test-Path (Join-Path $privado 'sessao.clixml'))) 'remove a conta e mantém a sessão'
+
+    Write-Host '15. Esquecer conta'
     $r = Atualizar @('-EsquecerConta')
     Confirmar ($r.Codigo -eq 0 -and -not (Test-Path (Join-Path $privado 'sessao.clixml'))) 'remove a sessão guardada'
 } finally {

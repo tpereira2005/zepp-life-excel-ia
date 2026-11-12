@@ -24,11 +24,17 @@ class Leitura:
     def __getitem__(self, campo: str):
         if campo == "massa_gorda":
             return self.massa_gorda
+        if campo == "massa_magra":
+            return self.massa_magra
         return self.valores.get(campo)
 
     @property
     def massa_gorda(self) -> float:
         return self["Weight"] * self["BodyFat"] / 100
+
+    @property
+    def massa_magra(self) -> float:
+        return self["Weight"] - self.massa_gorda
 
 
 @dataclass

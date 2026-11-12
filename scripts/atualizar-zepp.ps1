@@ -3,6 +3,9 @@
   - Sem parâmetros: descarrega as pesagens da Zepp Life (sessão/conta guardadas com DPAPI) e regenera.
   - -SoExcel: regenera a partir da exportação local, sem contactar a Xiaomi/Zepp.
   - -EsquecerConta: apaga a conta e a sessão guardadas neste computador.
+  - -EsquecerPalavraPasse: apaga só a palavra-passe guardada (a sessão continua até expirar).
+  - -ManterHistoricoDias N: dias em que todas as cópias de privado\historico são mantidas (30); das mais
+    antigas fica uma por mês. 0 = nunca apagar.
   Os resultados são preparados numa pasta temporária, validados e só depois substituem os anteriores;
   as versões anteriores ficam em privado\historico\. Em caso de falha, nada é substituído.
   Pastas: 'Excel e JSON' (resultados que se abrem) e 'privado' (exportação, histórico, temporários).
@@ -10,6 +13,8 @@
 param(
     [switch]$SoExcel,
     [switch]$EsquecerConta,
+    [switch]$EsquecerPalavraPasse,
+    [int]$ManterHistoricoDias = 30,
     [switch]$SemPausa,
     [switch]$SemExcelReal,
     [switch]$PermitirRemocoes,
@@ -36,11 +41,15 @@ $exportJson = Join-Path $PastaDados 'exportacao-zepp\zepp-completo.json'
 $exportCsv = Join-Path $PastaDados 'exportacao-zepp\zepp-completo.csv'
 $livroPath = Join-Path $PastaResultados 'analise-historico-zepp-life.xlsx'
 $iaPath = Join-Path $PastaResultados 'dados-zepp-life-ia.json'
+$resumoPath = Join-Path $PastaResultados 'dados-zepp-life-ia-resumo.json'
+$copiaManuaisPath = Join-Path $PastaDados 'medidas-manuais.csv'
 $pastaTemporaria = Join-Path $PastaDados 'temporario'
 $stage = $null
 $lockStream = $null
 $commitados = @()
 $credencial = $null
+$guardarSenha = $false
+$codigoPython = 0
 $resposta = $null
 $resultado = $null
 $falhou = $false
@@ -102,7 +111,8 @@ function Concluir-Verificacao($res) {
 }
 # Corre `python -m zepp_life_excel_ia <comando> ...`, grava toda a saída no registo e devolve o código de saída.
 # Mostra as linhas de resumo e lança o erro (linha "ERRO: ...") se o comando falhar.
-function Invoke-Python([string[]]$argumentos, [string]$registo, [string]$falha) {
+# Códigos em $tolerar não lançam erro: ficam em $script:codigoPython para quem chamou decidir.
+function Invoke-Python([string[]]$argumentos, [string]$registo, [string]$falha, [int[]]$tolerar = @()) {
     # O Windows PowerShell trata stderr nativo como erro: capturar tudo e decidir pelo código de saída.
     # Também descodifica a saída do Python com a página de código da consola (cp850), o que estraga
     # os acentos: usar UTF-8 durante a chamada e repor a codificação no fim.
@@ -124,13 +134,50 @@ function Invoke-Python([string[]]$argumentos, [string]$registo, [string]$falha) 
     }
     $linhas = @(Get-Content -LiteralPath $registo)
     $linhas | Where-Object { $_ -match '^(Excel real|Aviso|LEITURAS=)' } | ForEach-Object { Write-Host $_ }
-    if ($codigo -ne 0) {
+    $script:codigoPython = $codigo
+    if ($codigo -ne 0 -and $tolerar -notcontains $codigo) {
         $motivo = $linhas | Where-Object { $_ -match '^ERRO:' } | Select-Object -First 1
         throw ($falha + $(if ($motivo) { ' ' + ($motivo -replace '^ERRO:\s*', '') } else { '' }) + ' Registo completo: ' + $registo)
     }
 }
+# O executável do leitor recebe a palavra-passe: confirmar que é o mesmo da primeira utilização.
+# O hash fica em <leitor>.sha256; se o leitor for substituído de propósito, apaga-se esse ficheiro.
+function Confirmar-Leitor {
+    $hash = (Get-FileHash -LiteralPath $Leitor -Algorithm SHA256).Hash.ToLowerInvariant()
+    $registado = $Leitor + '.sha256'
+    if (Test-Path -LiteralPath $registado) {
+        $esperado = ((Get-Content -LiteralPath $registado -TotalCount 1) -split '\s+')[0].Trim().ToLowerInvariant()
+        if ($esperado -ne $hash) {
+            throw ("O leitor Zepp ($Leitor) foi alterado desde a última utilização (SHA-256 $hash, esperado $esperado). " +
+                'Por segurança, nada foi enviado. Se o substituiu de propósito, apague o ficheiro ' + $registado + ' e repita.')
+        }
+    } else {
+        [IO.File]::WriteAllText($registado, $hash + "`r`n", [Text.UTF8Encoding]::new($false))
+        Write-Host "Leitor Zepp registado (SHA-256 $hash). Compare com o valor publicado: docs/INSTALACAO.md."
+    }
+}
+# Mantém todas as cópias dos últimos $dias dias; das anteriores, só a mais recente de cada mês.
+function Limpar-Historico([string]$pasta, [int]$dias) {
+    if ($dias -le 0 -or -not (Test-Path -LiteralPath $pasta)) { return }
+    $limite = (Get-Date).Date.AddDays(-$dias).ToString('yyyy-MM-dd')
+    $antigas = @(Get-ChildItem -LiteralPath $pasta -Directory |
+        Where-Object { $_.Name -match '^\d{4}-\d{2}-\d{2}_' -and $_.Name.Substring(0, 10) -lt $limite })
+    $apagadas = 0
+    foreach ($grupo in ($antigas | Group-Object { $_.Name.Substring(0, 7) })) {
+        $grupo.Group | Sort-Object Name -Descending | Select-Object -Skip 1 | ForEach-Object {
+            try { Remove-Item -LiteralPath $_.FullName -Recurse -Force; $apagadas++ } catch { }
+        }
+    }
+    if ($apagadas) { Write-Host "Histórico: $apagadas cópia(s) com mais de $dias dias removida(s); fica uma por mês." }
+}
 
 try {
+    if ($EsquecerPalavraPasse) {
+        if (Test-Path -LiteralPath $contaPath) { Remove-Item -LiteralPath $contaPath -Force }
+        Write-Host 'Palavra-passe guardada removida deste computador. A sessão atual continua válida até expirar.'
+        $sucesso = $true
+        return
+    }
     if ($EsquecerConta) {
         foreach ($alvo in @($contaPath, $sessaoPath)) { if (Test-Path -LiteralPath $alvo) { Remove-Item -LiteralPath $alvo -Force } }
         Write-Host 'Conta e sessão guardadas removidas deste computador. Os dados e o Excel foram mantidos.'
@@ -154,6 +201,8 @@ try {
     $novoCsv = Join-Path $stage 'zepp-completo.csv'
     $novoLivro = Join-Path $stage 'analise-historico-zepp-life.xlsx'
     $novoIa = Join-Path $stage 'dados-zepp-life-ia.json'
+    $novoResumo = Join-Path $stage 'dados-zepp-life-ia-resumo.json'
+    $novaCopiaManuais = Join-Path $stage 'medidas-manuais.csv'
 
     if (-not $SoExcel) {
         if (-not (Test-Path -LiteralPath $Leitor)) { throw "Leitor Zepp não encontrado em $Leitor. Consulte docs/INSTALACAO.md." }
@@ -164,6 +213,7 @@ try {
         $acl.SetAccessRuleProtection($true, $false)
         $acl.SetAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($sid, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow')))
         [IO.Directory]::SetAccessControl($PastaPrivada, $acl)
+        Confirmar-Leitor
         if (Test-Path -LiteralPath $sessaoPath) {
             Write-Host 'A reutilizar a sessão guardada...' -ForegroundColor Cyan
             try { $resultado = Invoke-Leitor @{ Token = (Ler-Segredo (Import-Clixml -LiteralPath $sessaoPath)) } }
@@ -174,12 +224,18 @@ try {
                 $guardada = (Ler-Segredo (Import-Clixml -LiteralPath $contaPath)) | ConvertFrom-Json
                 $credencial = New-Object Management.Automation.PSCredential($guardada.Account, (ConvertTo-SecureString $guardada.Password -AsPlainText -Force))
                 $guardada = $null
+                $guardarSenha = $true
             } else {
-                Write-Host 'Primeira utilização: a conta será guardada cifrada para o seu utilizador Windows.' -ForegroundColor Cyan
+                Write-Host 'É preciso iniciar sessão na conta Xiaomi.' -ForegroundColor Cyan
                 $conta = Read-Host 'Email ou identificador Xiaomi'
                 if ([string]::IsNullOrWhiteSpace($conta)) { throw 'Falta a conta Xiaomi.' }
                 $senha = Read-Host 'Palavra-passe Xiaomi' -AsSecureString
                 $credencial = New-Object Management.Automation.PSCredential($conta.Trim(), $senha)
+                Write-Host 'A sessão é sempre guardada (cifrada para o seu utilizador Windows). A palavra-passe é opcional:'
+                Write-Host '  s = guardar cifrada, para renovar a sessão sem a voltar a pedir;'
+                Write-Host '  n = não guardar; volta a ser pedida quando a sessão expirar.'
+                do { $opcao = (Read-Host 'Guardar a palavra-passe neste computador? (s/n)').Trim().ToLowerInvariant() } until ($opcao -in @('s', 'n'))
+                $guardarSenha = ($opcao -eq 's')
             }
             Write-Host 'A autenticar na Xiaomi...'
             $resultado = Invoke-Leitor @{ Account = $credencial.UserName; Password = $credencial.GetNetworkCredential().Password }
@@ -196,10 +252,22 @@ try {
         # Vazia, inválida, com duplicados ou com pesagens anteriores em falta (por instante UTC) -> recusada.
         $validar = @('validar-exportacao', '--nova', $novoJson, '--anterior', $exportJson)
         if ($PermitirRemocoes) { $validar += '--permitir-remocoes' }
-        Invoke-Python $validar (Join-Path $stage 'validacao.log') 'Exportação recusada:'
+        Invoke-Python $validar (Join-Path $stage 'validacao.log') 'Exportação recusada:' @(2)
+        if ($codigoPython -eq 2) {
+            # Só faltam pesagens que existiam antes. Em modo interativo, perguntar; senão, recusar como sempre.
+            $motivo = (@(Get-Content -LiteralPath (Join-Path $stage 'validacao.log')) | Where-Object { $_ -match '^ERRO:' } |
+                Select-Object -First 1) -replace '^ERRO:\s*', ''
+            $aceitar = $false
+            if (-not $SemPausa) {
+                Write-Host $motivo -ForegroundColor Yellow
+                $aceitar = ((Read-Host 'Apagou estas pesagens de propósito na Zepp Life? Escreva SIM para as remover também aqui') -ceq 'SIM')
+            }
+            if (-not $aceitar) { throw ('Exportação recusada: ' + $motivo) }
+            Invoke-Python ($validar + '--permitir-remocoes') (Join-Path $stage 'validacao-2.log') 'Exportação recusada:'
+        }
         $dados | Export-Csv -LiteralPath $novoCsv -NoTypeInformation -Encoding UTF8 -Delimiter ';'
         Guardar-Privado (ConvertTo-SecureString -String $resposta.token -AsPlainText -Force) $sessaoPath
-        if ($null -ne $credencial) {
+        if ($null -ne $credencial -and $guardarSenha) {
             $pacote = @{ Account = $credencial.UserName; Password = $credencial.GetNetworkCredential().Password } | ConvertTo-Json -Compress
             Guardar-Privado (ConvertTo-SecureString $pacote -AsPlainText -Force) $contaPath
             $pacote = $null
@@ -212,17 +280,18 @@ try {
 
     Write-Host 'A gerar o Excel e o JSON e a preservar as medidas manuais...' -ForegroundColor Cyan
     $argumentos = @('gerar', '--origem', $novoJson, '--existente', $livroPath, '--excel', $novoLivro,
-        '--json', $novoIa, '--config', $Config)
+        '--json', $novoIa, '--config', $Config, '--json-resumo', $novoResumo,
+        '--copia-manuais', $copiaManuaisPath, '--guardar-copia-manuais', $novaCopiaManuais)
     if ($SemExcelReal) { $argumentos += '--sem-excel-real' }
     if ($Hoje) { $argumentos += @('--hoje', $Hoje) }
     Invoke-Python $argumentos $logPath 'Falha ao gerar o Excel/JSON.'
-    if (-not (Test-Path -LiteralPath $novoLivro) -or -not (Test-Path -LiteralPath $novoIa)) {
+    if (@($novoLivro, $novoIa, $novoResumo, $novaCopiaManuais | Where-Object { -not (Test-Path -LiteralPath $_) }).Count) {
         throw "Falha ao gerar o Excel/JSON. Registo completo: $logPath"
     }
     $ia = Get-Content -LiteralPath $novoIa -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($ia.metadados.sha256_excel -ne (Get-FileHash -LiteralPath $novoLivro -Algorithm SHA256).Hash.ToLowerInvariant()) { throw 'O Excel e o JSON não correspondem (hash diferente).' }
 
-    $pares = @(@($novoLivro, $livroPath), @($novoIa, $iaPath))
+    $pares = @(@($novoLivro, $livroPath), @($novoIa, $iaPath), @($novoResumo, $resumoPath), @($novaCopiaManuais, $copiaManuaisPath))
     if (-not $SoExcel) { $pares = @(@($novoJson, $exportJson), @($novoCsv, $exportCsv)) + $pares }
     $copias = Join-Path $PastaDados ('historico\' + (Get-Date -Format 'yyyy-MM-dd_HH-mm-ss-fff'))
     [void](New-Item -ItemType Directory -Path $copias -Force)
@@ -234,9 +303,11 @@ try {
     }
     if (@(Get-ChildItem -LiteralPath $copias).Count -eq 0) { [IO.Directory]::Delete($copias) }
     $sucesso = $true
+    Limpar-Historico (Join-Path $PastaDados 'historico') $ManterHistoricoDias
     Write-Host 'Atualização concluída. Excel e JSON para IA validados; versões anteriores guardadas em privado\historico.' -ForegroundColor Green
     Write-Host $livroPath
     Write-Host $iaPath
+    Write-Host $resumoPath
 } catch {
     $falhou = $true
     $mensagem = $_.Exception.Message
@@ -256,10 +327,13 @@ try {
         if (Test-Path -LiteralPath $html) { Remove-Item -LiteralPath $html -Force }
         if ($sucesso) { Remove-Item -LiteralPath $stage -Recurse -Force }
     }
-    # Guardar só as 5 tentativas falhadas mais recentes (contêm dados pessoais).
+    # Guardar só as 5 tentativas falhadas mais recentes e nenhuma com mais de 30 dias (contêm dados pessoais).
     if (Test-Path -LiteralPath $pastaTemporaria) {
-        Get-ChildItem -LiteralPath $pastaTemporaria -Directory | Sort-Object Name -Descending | Select-Object -Skip 5 |
-            ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force }
+        $limiteTentativas = (Get-Date).Date.AddDays(-30).ToString('yyyy-MM-dd')
+        $tentativas = @(Get-ChildItem -LiteralPath $pastaTemporaria -Directory | Sort-Object Name -Descending)
+        @($tentativas | Select-Object -Skip 5) + @($tentativas | Where-Object { $_.Name -match '^\d{4}-\d{2}-\d{2}_' -and $_.Name.Substring(0, 10) -lt $limiteTentativas }) |
+            Sort-Object FullName -Unique | Where-Object { $_.FullName -ne $stage } |
+            ForEach-Object { try { Remove-Item -LiteralPath $_.FullName -Recurse -Force } catch { } }
     }
     $credencial = $null; $resposta = $null; $resultado = $null
 }

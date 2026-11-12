@@ -70,16 +70,21 @@ METRICAS = [
     Metrica("massa_gorda", "massa_gorda_kg", "Massa gorda", "kg", "peso_kg × gordura_corporal_percentagem / 100",
             "derivada", da_exportacao=False, coluna="Massa gorda (kg)", resumo="massa_gorda_media_kg",
             cabecalho_resumo="Massa gorda média (kg)"),
+    Metrica("massa_magra", "massa_magra_kg", "Massa magra", "kg",
+            "peso_kg − massa_gorda_kg (tudo o que não é gordura: músculo, osso, água, órgãos)",
+            "derivada", da_exportacao=False, coluna="Massa magra (kg)", resumo="massa_magra_media_kg",
+            cabecalho_resumo="Massa magra média (kg)"),
 ]
 POR_CAMPO = {m.campo: m for m in METRICAS}
 DA_EXPORTACAO = [m for m in METRICAS if m.da_exportacao]
+DERIVADAS = [m for m in METRICAS if not m.da_exportacao]
 
 # Colunas de métricas na folha "Medições Corporais", por ordem (a seguir a "Data/hora").
 COLUNAS_MEDICOES = ["Weight", "BMI", "BodyFat", "BodyWater", "BoneMass", "MuscleMass", "ProteinRatio",
-                    "massa_gorda", "VisceralFat", "BasalMetabolism", "MetabolicAge", "BodyScore"]
+                    "massa_gorda", "massa_magra", "VisceralFat", "BasalMetabolism", "MetabolicAge", "BodyScore"]
 
 # Métricas dos resumos, por ordem. As duas primeiras têm coluna de variação a seguir.
-RESUMO = ["Weight", "BodyFat", "MuscleMass", "massa_gorda", "BodyWater", "ProteinRatio", "BoneMass",
+RESUMO = ["Weight", "BodyFat", "MuscleMass", "massa_gorda", "massa_magra", "BodyWater", "ProteinRatio", "BoneMass",
           "BMI", "VisceralFat", "MetabolicAge", "BodyScore"]
 
 
@@ -110,5 +115,17 @@ LIMITES = {
     "BodyScore": (0, 100),
 }
 
-# Indicadores do Painel e do JSON (média 7 dias inicial/atual, variação, ritmo).
-INDICADORES = ["Weight", "BodyFat", "MuscleMass"]
+# Indicadores do Painel e do JSON (média 7 dias inicial/atual, variação, ritmo, valor no mínimo do peso).
+INDICADORES = ["Weight", "BodyFat", "MuscleMass", "massa_gorda", "massa_magra"]
+
+# Leituras atípicas: são ASSINALADAS (folha Critérios e JSON), nunca excluídas nem alteradas.
+# Uma leitura é atípica quando se afasta da mediana das outras leituras a ±7 dias mais do que o limite.
+ATIPICA_VIZINHANCA_DIAS = 7
+ATIPICA_MINIMO_VIZINHAS = 4
+ATIPICA_ABSOLUTA = {"Weight": 1.5, "BodyFat": 1.5}       # kg e pontos percentuais
+ATIPICA_RELATIVA = {"Impedance": 0.20}                   # fração da mediana
+
+# Ritmo recente: declive da regressão linear das leituras dos últimos 28 dias.
+RITMO_DIAS = 28
+RITMO_MINIMO_LEITURAS = 8
+RITMO_MINIMO_AMPLITUDE_DIAS = 14

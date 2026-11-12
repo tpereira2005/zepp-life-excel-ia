@@ -26,7 +26,9 @@ def registo(momento: datetime, peso: float, gordura: float, musculo: float, comp
     return r
 
 
-def exportacao(dias: int = 120, semente: int = 7, inicio: date = INICIO) -> list[dict]:
+def exportacao(dias: int = 120, semente: int = 7, inicio: date = INICIO, viragem: float | None = None) -> list[dict]:
+    """viragem (0–1): fração do período a partir da qual o peso volta a subir devagar (para o exemplo
+    mostrar "desde o mínimo" e fases); None = descida até ao fim."""
     aleatorio = random.Random(semente)
     registos = []
     for d in range(-5, dias):
@@ -36,6 +38,8 @@ def exportacao(dias: int = 120, semente: int = 7, inicio: date = INICIO) -> list
         hora = 10 if dia.isoweekday() >= 6 else 7
         momento = datetime(dia.year, dia.month, dia.day, hora, aleatorio.randint(0, 59), tzinfo=LISBOA)
         t = max(d, 0) / max(dias, 1)
+        if viragem is not None and t > viragem:
+            t = viragem - 0.45 * (t - viragem)
         peso = 84 - 7 * t + aleatorio.gauss(0, 0.35)
         gordura = 25 - 5 * t + aleatorio.gauss(0, 0.4)
         musculo = 59.5 - 0.6 * t + aleatorio.gauss(0, 0.25)
@@ -68,7 +72,8 @@ def csv_manual(semanas: int = 14, semente: int = 3, inicio: date = INICIO) -> st
     return "\n".join(linhas) + "\n"
 
 
-def criar_projeto(pasta: Path, dias: int = 120, semanas_csv: int = 14) -> dict:
+def criar_projeto(pasta: Path, dias: int = 120, semanas_csv: int = 14, viragem: float | None = None,
+                  extra: dict | None = None) -> dict:
     """Cria config.json, exportação e CSV fictícios numa pasta; devolve os caminhos."""
     pasta.mkdir(parents=True, exist_ok=True)
     (pasta / "inputs").mkdir(exist_ok=True)
@@ -78,7 +83,8 @@ def criar_projeto(pasta: Path, dias: int = 120, semanas_csv: int = 14) -> dict:
     config.write_text(json.dumps({
         "inicio_transformacao": INICIO.isoformat(), "fuso_horario": "Europe/Lisbon", "perfil_titular_id": -1,
         "altura_perfil_sem_id_cm": 178, "protocolo_pesagem": "Ao acordar, depois de ir à casa de banho.",
-        "csv_medidas_iniciais": "inputs/medicoes.csv"}, ensure_ascii=False, indent=2), encoding="utf-8")
+        "csv_medidas_iniciais": "inputs/medicoes.csv", **(extra or {})}, ensure_ascii=False, indent=2),
+        encoding="utf-8")
     origem = pasta / "exportacao.json"
-    origem.write_text(json.dumps(exportacao(dias), indent=1), encoding="utf-8")
+    origem.write_text(json.dumps(exportacao(dias, viragem=viragem), indent=1), encoding="utf-8")
     return {"config": config, "origem": origem, "csv": csv}
